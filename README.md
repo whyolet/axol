@@ -8,7 +8,7 @@ Please don't confuse Axolang with:
 * https://github.com/axolotl-lang/axolotl
 * https://github.com/axodotdev
 
-This early draft version 0.0.2 is made of few examples.
+This early draft version 0.0.3 is made of few examples.
 
 ## Run Axolang file
 
@@ -41,7 +41,7 @@ set foo="bar"
 set baz=foo
 ```
 
-## Get value:
+## Get value
 
 ```axolang
 print foo
