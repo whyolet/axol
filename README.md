@@ -8,7 +8,7 @@ Please don't confuse Axolang with:
 * https://github.com/axolotl-lang/axolotl
 * https://github.com/axodotdev
 
-This early draft version 0.0.1 is made of few examples.
+This early draft version 0.0.2 is made of few examples.
 
 ## Run Axolang file
 
@@ -175,10 +175,10 @@ set axolotl={
   set this=cat(legs=n.legs.or(4))
 
   this.set
-    mutate={this.set(
+    mutate={this.set
       legs=n.legs.or(42)
       wings=2
-    )}
+    }
 
     fly={
       if this.wings.is(null)
