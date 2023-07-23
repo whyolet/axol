@@ -8,7 +8,7 @@ Please don't confuse Axolang with:
 * https://github.com/axolotl-lang/axolotl
 * https://github.com/axodotdev
 
-This early draft version 0.0.3 is made of few examples.
+This early draft version 0.0.4 is made of few examples.
 
 ## Run Axolang file
 
@@ -59,7 +59,7 @@ set func={
 
   print "Map of all named parameters = {n}"
   print "Named parameter = {n.name}"
-  print "Default value = {n.size.or(42)}"
+  print "Default value = {n.name.or(42)}"
 
   "The last value in a function is its result"
 }
