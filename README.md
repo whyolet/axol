@@ -4,7 +4,7 @@
 
 * Minimalist programming language simple to read, write, extend.
 * Named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.2.2
+* Version: 0.2.3
 * Docs:
 {:toc}
 
@@ -188,18 +188,14 @@ print ",":join(("bar" "baz" "qux"))
 
 ```axol
 set foo=("c" "d" "e")
+
 foo:add "f" "g"
 print foo
 # Prints: c d e f g
-```
 
-### [ins](#ins)
-
-```axol
-set foo=("c" "d" "e")
-foo:ins "a" "b" at=0
+foo:add "a" "b" at=0
 print foo
-# Prints: a b c d e
+# Prints: a b c d e f g
 ```
 
 ### [del](#del)
