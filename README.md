@@ -4,7 +4,7 @@
 
 * Minimalist programming language simple to read, write, extend.
 * Named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.2.0
+* Version: 0.2.2
 * Docs:
 {:toc}
 
@@ -109,9 +109,9 @@ set result=(a0 a1 name=value)
 
 ## [Builtin functions](#builtin-functions)
 
-```axol
 ### [set](#set)
 
+```axol
 set name="value" more=true
 # Sets in current local scope.
 
