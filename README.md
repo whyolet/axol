@@ -109,6 +109,7 @@ set result=(a0 a1 name=value)
 
 ## [Builtin functions](#builtin-functions)
 
+```axol
 ### [set](#set)
 
 set name="value" more=true
