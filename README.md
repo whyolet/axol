@@ -4,7 +4,7 @@
 
 * Minimalist programming language simple to read, write, extend.
 * Named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.2.3
+* Version: 0.2.4
 * Docs:
 {:toc}
 
@@ -183,6 +183,24 @@ print ",":join(foo)
 print ",":join(("bar" "baz" "qux"))
 # Prints: bar,baz,qux
 ```
+### [where](#where)
+
+```axol
+set items=(0 1 3 foo="foo" bar="baz")
+
+print items:where({a.name:eq(a.value)})
+# Prints: 0 1 foo=foo
+
+print items
+  :where({a.name:eq(a.value)})
+  :map({a.value:mul(3)})
+# Prints: 0 3 foofoofoo
+
+print items
+  :map({a.value:mul(3)})
+  :where({a.name:eq(a.value)})
+# Prints: 0
+```
 
 ### [add](#add)
 
@@ -273,8 +291,18 @@ try {
 
 ### [Operators](#operators)
 
+Each line below is true.
+
 ```axol
-2:plus(2):eq(4):eq(true)
+2:plus(2):eq(2:mul(2))
+4:minus(2):eq(4:div(2))
+"foo":mul(3):eq("foofoofoo")
+2:pow(3):eq(8)
+8:pow(1:div(3)):minus(2):abs:lt(0.1)
+abs(-2):eq(2)
+2:lt(3)
+3:gt(2)
+"bar":in(("foo" "bar" "baz"))
 not(true):eq(false)
 null:or(42):eq(42)
 42:and("more"):eq("more")
