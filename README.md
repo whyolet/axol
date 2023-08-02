@@ -4,7 +4,7 @@
 
 * Minimalist programming language simple to read, write, extend.
 * Named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.2.4
+* Version: 0.2.5
 * Docs:
 {:toc}
 
@@ -356,14 +356,20 @@ lib.func a0 a1 name=value
 import lib="https://example.com/some/lib.axol"
 set result=a0:lib.func(a1 name=value)
 
+import "all any min max sum zip" from="python3"
+# https://docs.python.org/3/library/functions.html
+print ("foo" "bar" "baz"):max
+
 import py="python3"
 set items=("b" "a" "c" "d")
 print items:py.sort
 print items:py.sort(key={lib.func name=a.0})
 # https://docs.python.org/3/library/stdtypes.html#list.sort
 
-set os=py.import("os")
+set os=py.__import__("os")
 os.listdir():each {print a.value}
+# https://docs.python.org/3/library/index.html and installed packages
+
 # That's how small axol regrows missing body parts!
 ```
 
