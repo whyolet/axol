@@ -4,7 +4,7 @@
 
 * Minimalist programming language simple to read, write, extend.
 * Named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.2.5
+* Version: 0.2.6
 * Docs:
 {:toc}
 
@@ -163,26 +163,28 @@ foo:each {print a.name a.value}
 
 ```axol
 set foo=("bar" "baz" name="value")
-print foo:map({"=":join((a.name a.value))})
+print foo:map({(a.name a.value):join("=")})
 # Prints: 0=bar 1=baz name=value
-
-# You can also call `join` in `a0:func a1` form:
-print foo:map({"=":join (a.name a.value)})
-
-# Or in `func a0 a1` form:
-print foo:map({join "=" (a.name a.value)})
 ```
 
 ### [join](#join)
 
 ```axol
 set foo=("bar" "baz" "qux")
-print ",":join(foo)
+print foo:join(",")
 # Prints: bar,baz,qux
 
-print ",":join(("bar" "baz" "qux"))
+print ("bar" "baz" "qux"):join(",")
 # Prints: bar,baz,qux
 ```
+
+### [split](#split)
+
+```axol
+print "bar,baz,qux":split(",").1
+# Prints: baz
+```
+
 ### [where](#where)
 
 ```axol
