@@ -4,7 +4,7 @@
 
 * Minimalist programming language simple to read, write, extend.
 * Named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.2.6
+* Version: 0.2.7
 * Docs:
 {:toc}
 
@@ -185,6 +185,83 @@ print "bar,baz,qux":split(",").1
 # Prints: baz
 ```
 
+### [names](#names)
+
+```axol
+set foo=("bar" "baz" name="value")
+print foo:names
+# Prints: 0 1 name
+
+print names()
+# Prints all names in current and outer scopes, like /help
+```
+
+### [values](#values)
+
+```axol
+set foo=("bar" "baz" name="value")
+print foo:values
+# Prints: bar baz value
+```
+
+### [in](#in)
+
+Each line below is true.
+
+```axol
+"bar":in(("foo" "bar" "baz"))
+
+set foo=("bar" "baz" name="value")
+
+"baz":in(foo)
+1:in(foo):eq(false)
+1:in(foo:names)
+
+"value":in(foo)
+"name":in(foo):eq(false)
+"name":in(foo:names)
+```
+
+### [print](#print)
+
+```axol
+print
+# Prints empty line
+
+print "hi"
+# Prints: hi
+# and a newline
+
+print "yes/no: " end=""
+# Prints: yes/no:
+# and no newline
+
+print "bug" err=true
+# Prints: bug
+# to stderr aka stream number 2
+
+print "rare" err=3
+# Prints: rare
+# to stream number 3
+
+print "foo" "bar" "baz"
+# Prints: foo bar baz
+
+print ("foo" "bar" name="value")
+# Prints: foo bar name=value
+```
+
+### [input](#input)
+
+```axol
+set foo=input()
+# Inputs a string from stdin
+
+set foo=input("yes/no: ")
+# The same after:
+# print "yes/no: " end=""
+```
+
 ### [where](#where)
 
 ```axol
@@ -290,24 +367,33 @@ try {
   print "this will always run"
 }
 ```
+### [Bool](#bool)
 
-### [Operators](#operators)
+Each line below is true.
+
+```axol
+bool("cat")
+bool(""):eq(false)
+not(true):eq(false)
+null:or(42):eq(42)
+42:and("more"):eq("more")
+"either":xor("or"):eq(false)
+```
+
+### [Math](#math)
 
 Each line below is true.
 
 ```axol
 2:plus(2):eq(2:mul(2))
 4:minus(2):eq(4:div(2))
+5:mod(2):eq(1)
 "foo":mul(3):eq("foofoofoo")
 2:pow(3):eq(8)
-8:pow(1:div(3)):minus(2):abs:lt(0.1)
+8:pow(1:div(3)):minus(2):abs:lt(0.001)
 abs(-2):eq(2)
 2:lt(3)
 3:gt(2)
-"bar":in(("foo" "bar" "baz"))
-not(true):eq(false)
-null:or(42):eq(42)
-42:and("more"):eq("more")
 ```
 
 ## [Types](#types)
