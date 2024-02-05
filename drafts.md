@@ -91,11 +91,11 @@ print DoubleAction|is(Number) # false
 ## [$this](#this)
 
 ```axol
-$import "box is join nargs mul print Error"
+$import "box is join nam_args mul print Error"
 
 type
   Animal:
-    nargs "word" times=1
+    nam_args "word" times=1
     $parent
       word=word
       times=times
@@ -108,7 +108,7 @@ type
 
 type of=Animal
   Cat:
-    nargs times=2
+    nam_args times=2
     $parent word="meow" times=times
   
   smile:
@@ -129,7 +129,7 @@ type of=Error "NotFound Invalid"
 Animal=box
   $parent=Object
   $call:
-    nargs "word" times=1
+    nam_args "word" times=1
     $this=Animal.$parent
       word=word
       times=times
@@ -144,7 +144,7 @@ Animal=box
 Cat=box
   $parent=Animal
   $call:
-    nargs times=2
+    nam_args times=2
     $this=Cat.$parent
       word="meow"
       times=times
@@ -168,7 +168,7 @@ Invalid=box
 ## [Error](#Error)
 
 ```axol
-$import "box pargs try Error"
+$import "box pos_args try Error"
 
 try
   do: Error("aaa").cry()
@@ -184,7 +184,7 @@ try
       then: NotFound("Value of 'found' is not true").cry()
     print "This will never run"
   catch:
-    pargs "err"
+    pos_args "err"
     if err|is(NotFound)
       then:
         print "{err.$type} at {err.file} L{err.line}:C{err.column}\n{err.args}"
@@ -195,20 +195,20 @@ try
 ```
 * Run the `do` action.
     * When an object of `Error` is created, it stores current `file, line, column`, can store args.
-    * To raise this error, pass it to the `cry` action.
+    * To raise this error, call its `.cry()` action.
 * If the error is raised, run the `catch` action, passing this error as the only positional argument.
     * The error can be reraised by calling its `.cry()` action.
 * Uncaught error is printed to stderr, app exits with code 1.
 
 ## TODO
 
-* how an object of error gets its class name for error log?
+* how an object of error gets its class name?
 * make links to [is](#is) from `length`, `in`, etc.
-* rename bool to Bool
-* add sections for Number etc
+* rename `bool` to `Bool`
+* add sections for `Number` etc
 * `mul` and `plus` of box
-* aaa($args...)
-* $str: "..."
+* `aaa($args...)`
+* `$str: "..."`
 
 ## raw
 

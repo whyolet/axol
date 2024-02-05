@@ -5,7 +5,7 @@
 * Minimalist programming language simple to read, write, extend.
 * Influenced by: [Python](https://www.python.org/), [Bash](https://www.gnu.org/software/bash/), [XL](https://xlr.sourceforge.io/).
 * Axol is named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.3.0
+* Version: 0.3.1
 * Docs:
 {:toc}
 
@@ -51,7 +51,7 @@ true
 * Examples below use placeholders: `aaa`, `bbb`, `ccc`, `ddd`, ..., `yyy`, `zzz`.
 * They are simpler to invent and recognize than few well-known [metasyntactic variables](https://en.wikipedia.org/wiki/Metasyntactic_variable) `foo`, `bar`, `baz`, `qux`, ...what's next?
 * They avoid confusion with:
-  * Words that should be used as is, like `true`, `lib`, `file`.
+  * Words that should be used as is, like `file`.
   * Short words like `a` being an article.
   * Each other, unlike `name1`, `name2`, `name3`, ..., `name25`, `name26`.
 
@@ -117,12 +117,12 @@ action(nick="Mad")
   * [$import](#import) - action to import other libs.
 * Names auto-created in action scope are:
   * `$outer` - points to the scope box where this action was created.
-  * `$caller` - points to the scope box of the caller of this action.
-  * `$args` - points to a box with arguments passed by the caller of this action.
+  * `$caller` - points to the scope box where this action was called.
+  * `$args` - points to a box with arguments passed by the caller to this action.
   * `@0` - shortcut for `$args.0` - the first positional argument.
   * `@1` - shortcut for `$args.1`, and so on.
-  * `@nnn` - shortcut for `$args.aaa` - named argument `aaa="bbb"`
-* See also: [env](#env), [cli_args](#cli-args), [pargs](#pargs), [nargs](#nargs).
+  * `@aaa` - shortcut for `$args.aaa` - named argument `aaa="bbb"`
+* See also: [env](#env), [cli_args](#cli-args), [pos_args](#pos-args), [nam_args](#nam-args).
 * All names starting with `$` or `@` are reserved for axol to avoid collision with custom names created by user.
 
 ## [name=value](#name-value)
@@ -142,7 +142,7 @@ aaa
 * Find name `aaa` in local scope.
 * If found, then return a value it points to.
 * Else try the same in `$outer` scope, else in its `$outer`, and so on.
-  * This step is not applied for [auto-created](#auto-created) names starting with `@`, as they are shortcuts to names in `$args` box which is always found in the local scope.
+  * This step is not applied for [auto-created](#auto-created) names starting with `$` or `@` - they are always local.
 * Else cry "Name `aaa` is not found."
 
 ## [action](#action)
@@ -239,7 +239,7 @@ aaa bbb "ccc" ddd="eee" fff: ggg
   * It should be on its own line in app/lib/action, as otherwise `aaa` and `bbb` become arguments as in `print aaa bbb "ccc"`
   * Passing [action](#action) without [name: action](#name-action) is not supported, as `aaa : hhh` can be easily confused with `aaa: hhh`
   * "Without arguments" case is not supported, as it would be the same as just getting a value of [name](#name) `aaa`.
-  * It can return result only when it is the only or the last line of an action:
+  * It can return result only when it is the only or the last line of an action to avoid confusing `result=aaa bbb=ccc`:
 ```axol
 get_result: aaa bbb "ccc" ddd="eee"
 
@@ -292,7 +292,7 @@ a0|aaa
 ```
 * The [inline-call](#inline-call), [newline-call](#newline-call), and [multiline-call](#multiline-call) above have their first positional argument `a0` passed through the pipe `|`
 * They all are equal to `aaa(a0 a1 a2)`
-* It makes infix actions like `length|minus(1)` more readable than `minus(length 1)`.
+* It makes naturally infix actions like `minus` more readable in `nnn|minus(1)` compared to `minus(nnn 1)`.
 * It avoids need in operator precedence that can be confused with different operator precedence from another programming language:
   * What `aaa / bbb % ccc` means?
     * `(aaa / bbb) % ccc` ?
@@ -345,8 +345,8 @@ $import "each print"
 
 py=$import
   file=".axol/python.axol"
-  "all any min max sum zip" # SEO
-  "sorted" # used in this example
+  "all any min max"
+  "sorted sum zip"
 
 os=py.__import__("os")
 
@@ -371,7 +371,7 @@ aaa.fff()
 aaa.hhh="iii"
 print aaa.hhh # iii
 ```
-* Get a new box with passed args.
+* Create a box with passed args.
 * They can be get and set using either dot `.` or actions - see [get](#get), [set](#set), etc.
 * See [box-concept](#box-concept) and [inline-call](#inline-call).
 * Implementation:
@@ -477,15 +477,15 @@ print cli_args.1 # aaa
 print cli_args.eee # fff
 ```
 
-## [pargs](#pargs)
-## [nargs](#nargs)
+## [pos_args](#pos-args)
+## [nam_args](#nam-args)
 
 ```axol
-$import "nargs pargs print"
+$import "nam_args pos_args print"
 
 aaa:
-  pargs "bbb ccc" ddd="eee" fff="ggg"
-  nargs "hhh iii" jjj="kkk" lll="mmm"
+  pos_args "bbb ccc" ddd="eee" fff="ggg"
+  nam_args "hhh iii" jjj="kkk" lll="mmm"
 
   print bbb ccc ddd fff
   print hhh iii jjj lll
@@ -496,16 +496,17 @@ aaa
 # nnn ooo ppp ggg
 # qqq rrr kkk sss
 ```
-* `pargs`:
+* `pos_args`:
   * Set local name `bbb` to point to positional arg `@0`.
   * `ccc` - to `@1`.
   * `ddd` - to `@2`, etc.
-* `nargs`:
+* `nam_args`:
   * Set local name `hhh` to point to named arg `@hhh`.
   * `iii` - to `@iii`.
   * `jjj` - to `@jjj`, etc.
-* Names passed in the positional args are required, e.g. `bbb` and `hhh`.
-* Names passed as named args are optional with given default values, e.g. `fff="ggg"`.
+* For both `pos_args` and `nam_args`:
+  * Names passed in the positional args are required, e.g. `bbb` and `hhh`.
+  * Names passed as named args are optional with given default values, e.g. `fff="ggg"` and `jjj="kkk"`.
 
 ## [bool](#bool)
 
