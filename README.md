@@ -5,7 +5,7 @@
 * Minimalist programming language simple to read, write, extend.
 * Influenced by: [Python](https://www.python.org/), [Bash](https://www.gnu.org/software/bash/), [XL](https://xlr.sourceforge.io/).
 * Axol is named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.3.1
+* Version: 0.3.2
 * Docs:
 {:toc}
 
@@ -143,7 +143,7 @@ aaa
 * If found, then return a value it points to.
 * Else try the same in `$outer` scope, else in its `$outer`, and so on.
   * This step is not applied for [auto-created](#auto-created) names starting with `$` or `@` - they are always local.
-* Else cry "Name `aaa` is not found."
+* Else [throw](#throw) "Name `aaa` is not found."
 
 ## [action](#action)
 
@@ -303,6 +303,31 @@ a0|aaa
     * `aaa|div(bbb)|mod(ccc)` means `(aaa / bbb) % ccc`
 * It enables concise left-to-right pipelines like `items|map(to: "{@name}={@value}")|sorted|join("\n")`
 * Note that parentheses `()` are omitted in `|sorted` because it is definitely a [pipeline-call](#pipeline-call), which cannot be confused with just getting a value of [name](#name) `sorted`.
+* For the same reason a pipeline can be split to multiple lines with exactly two-space indentation before the pipe `|` like this:
+```axol
+items
+  |map(to: "{@name}={@value}")
+  |sorted
+  |join("\n")
+```
+
+## [unboxing-call](#unboxing-call)
+
+* Given `aaa` being a box with `"bbb" ccc="ddd"` inside:
+```axol
+eee("fff" ggg="hhh" aaa...)
+# is the same as:
+eee("fff" "bbb" ggg="hhh" ccc="ddd")
+```
+* While:
+```axol
+eee(aaa... "fff" ggg="hhh")
+# is the same as:
+eee("bbb" "fff" ccc="ddd" ggg="hhh")
+```
+* So the ellipsis `...` unboxes whatever is inside of the box, before or after other arguments.
+* Multiple boxes can be unboxed in the same call.
+* This works with any call type, not just [inline-call](#inline-call).
 
 ## [$import](#import)
 
@@ -317,7 +342,7 @@ aaa=$import("bbb ccc=ddd" file="../eee.axol")
     * Else in one more parent directory, and so on.
     * Else in OS-specific user home directory like `~`
     * Else in OS-specific shared directory like `/usr/local/lib`
-    * Else cry "File `.axol/eee.axol` is not found."
+    * Else [throw](#throw) "File `.axol/eee.axol` is not found."
   * Else `file` path should start with either `./` or `../` to clearly be relative to importer's directory.
 
 * If the absolute path to the `file` is not in the import cache box yet, then:
@@ -350,8 +375,9 @@ py=$import
 
 os=py.__import__("os")
 
-os.listdir()|sorted|each do:
-  print @value
+os.listdir()
+  |sorted
+  |each do: print @value
 ```
 * Lib `.axol/python.axol` contains axol bindings to all names available in python language, e.g. its [built-in functions](https://docs.python.org/3/library/functions.html).
 * [`python.__import__`](https://docs.python.org/3/library/functions.html#import__) can import any [installed python packages](https://pypi.org/) and packages from its [standard library](https://docs.python.org/3/library/index.html).
@@ -540,6 +566,37 @@ true|or(false)|eq(true)
 true|xor(true)|eq(false)
 ```
 
+## [is](#is)
+
+* Each comparison below is `true`:
+```axol
+$import "action bool box number is string"
+
+null|is(null)
+
+false|is(false)
+true|is(not(false))
+false|is(a=bool)
+true|is(a=bool)
+
+-3.14|is(a=number)
+"-3.14"|is(a=string)
+
+aaa: "bbb"
+aaa|is(a=action)
+
+box(ccc="ddd")|is(a=box)
+
+box(ccc="ddd")
+  |is(box(ccc="ddd"))
+  |is(false)
+```
+* If only positional args `@0` and `@1` are passed, then:
+  * If they point to the same address in memory, then return `true`, else return `false`.
+* Else if positional arg `@0` and named arg `@a` are passed, then:
+  * If `@0` is created by an action `@a`, then return `true`, else return `false`.
+* Else [throw](#throw) "Unexpected args".
+
 ## [math](#math)
 
 * Each line below is `true`:
@@ -555,6 +612,21 @@ $import
 
 "2"|plus("3")|eq("23")
 "2"|mul(3)|eq("222")
+
+box("aaa" bbb="ccc" ddd="eee")
+  |plus(box("fff" bbb="ggg" hhh="iii"))
+# aaa
+# fff
+# bbb="ggg"
+# ddd="eee"
+# hhh="iii"
+
+box("aaa" "bbb" ccc="ddd")|mul(2)
+# aaa
+# bbb
+# aaa
+# bbb
+# ccc="ddd"
 
 2|pow(8)|eq(256) # POWer, ^, **
 -2|abs|eq(2) # ABSolute value, |x|
@@ -587,8 +659,11 @@ print aaa|get("bbb") # ccc
 print aaa|get("ddd" default=null) # null
 ```
 * The same as getting `aaa.bbb` [using dot](#box), but:
-  * `name` is passed as a positional argument `@1` to support dynamic naming, e.g. in a [loop](#loop).
-  * If optional `default=value` is passed, then it is returned instead of crying "Name `ddd` is not found."
+  * `name` "bbb" is passed as a positional argument `@1` to support dynamic naming, e.g. in a [loop](#loop).
+* If name "ddd" is not found, then:
+  * If optional `default=value` is passed:
+    * Then `value` is returned.
+    * Else [throw](#throw) the same error as the failed [name](#name) lookup.
 
 * If [bool](#bool) comparisons `lt gt lte gte` are used as named arguments instead of the positional argument `@1`:
   * Then return a new box with positional values (from original box `@0`) having indices satisfying all comparisons:
@@ -659,7 +734,7 @@ ggg|up aaa="nnn"
     * Find the name in the `where` box.
     * Else in `where.$outer`, if any.
     * Else in `where.$outer.$outer` and so on.
-    * Else cry with the same error as the failed [name](#name) lookup.
+    * Else [throw](#throw) the same error as the failed [name](#name) lookup.
     * If found, then update the name where it was found, to point to a new value or action passed.
 
 ## [add](#add)
@@ -799,9 +874,9 @@ print "string"|length # 6
 aaa=box("bbb" "ccc" ddd="eee")
 print aaa|length # 2, not 3.
 ```
-* If `@0` is a string: return its length in characters.
-* Else if `@0` is a box: return the length of its positional side, ignoring `name="value"` pairs.
-* Else cry "Value `{@0}` has no length."
+* If `@0` [is a](#is) string: return its length in characters.
+* Else if `@0` [is a](#is) box: return the length of its positional side, ignoring `name="value"` pairs.
+* Else [throw](#throw) "Value `{@0}` has no length."
 
 ## [find](#find)
 
@@ -816,15 +891,15 @@ print aaa|find("bbb") # 0
 print aaa|find("ddd") # null
 print aaa|find("eee") # ddd
 ```
-* If the values passed are strings:
+* If each value passed [is a](#is) string:
   * If `@1` is found in `@0`:
     * Then return the first matching index.
     * Else return `null`.
-* Else if `@0` is a box:
+* Else if `@0` [is a](#is) box:
   * If `@1` is found in the values of the box `@0`:
     * Then return the first matching name.
     * Else return `null`.
-* Else cry "Presence of `{@1}` in `{@0}` cannot be checked."
+* Else [throw](#throw) "Presence of `{@1}` in `{@0}` cannot be checked."
 
 ## [in](#in)
 
@@ -986,7 +1061,8 @@ aaa|each do: print @name @value
 # ddd eee
 ```
 * For each `name=value` in the box passed as `@0`:
-  * Call action `do(name=name value=value)`.
+  * `do_result=do(name=name value=value)`.
+* Return the value of `do_result`.
 * A string is treated as a box with characters:
 ```axol
 $import "each print"
@@ -1060,7 +1136,98 @@ print aaa() # bbb
 ```
 * Name `$call` is not [auto-created](#auto-created), but it has a reserved meaning.
 * When a box is [called](#call-concept), its `$call` action is called instead.
-* Else cry "Cannot call: neither an action, nor a box with `$call` action."
+* Else [throw](#throw) "Cannot call: neither an action, nor a box with `$call` action."
+
+## [catch](#catch)
+## [throw](#throw)
+
+```axol
+$import "catch throw"
+
+aaa=null
+bbb=catch
+  do:
+    up aaa="ccc"
+    throw "ddd" eee="fff"
+    up aaa="ggg"
+  finally:
+    print "always"
+# always
+
+print aaa # ccc
+
+if bbb
+  then:
+    print bbb
+    # ddd
+    # eee="fff"
+    # $throw=box
+    #   file="app.axol"
+    #   line=7
+    #   column=5
+
+    throw bbb
+    # Uncaught:
+    # ddd
+    # eee="fff"
+    # $throw=box
+    #   file="app.axol"
+    #   line=7
+    #   column=5
+```
+* It `throw` is called:
+  * If its only positional argument is an already thrown box (contains name `$throw`):
+    * Then reuse this thrown box as is.
+    * Else create a new thrown box from all positional args, named args, and reserved name `$throw` pointing to a box with location of this throw (file, line, column).
+  * Find the nearest `catch` that called its `do` action being a `$caller` (of `$caller`...) of this `throw`.
+  * If such `catch` is found:
+    * Then:
+      * If this `catch` has `finally` action, then call it.
+      * Return the thrown box instantly from this `catch`.
+    * Else (no `catch` found), end the whole app instantly with `Uncaught: {thrown}` printed to stderr and exit code 1.
+* It no `throw` was called in `do` action of `catch`, then:
+  * If `catch` has `finally` action, then call it.
+  * Return `null` from `catch`.
+
+## [break](#break)
+
+```axol
+$import "break if input loop print"
+
+loop
+  do:
+    line=input()
+    if line|eq("")
+      then: break()
+    print(line)
+
+# Implementation:
+break: throw break
+```
+* [Throw](#throw) itself.
+* If [loop](#loop) or [each](#each) [catches](#catch) a box where `.0` [is](#is) `break`:
+  * Then it returns its `do_result` instantly.
+* If [map](#loop) [catches](#catch) a `break`:
+  * Then it returns its `map_result` instantly.
+
+## [continue](#continue)
+
+```axol
+$import "continue if input loop print"
+
+loop
+  do:
+    line=input()
+    if line|eq("")
+      then: continue()
+    print(line)
+
+# Implementation:
+continue: throw continue
+```
+* [Throw](#throw) itself.
+* If [loop](#loop), [each](#each), or [map](#map) [catches](#catch) a box where `.0` [is](#is) `continue`:
+  * Then it stops current iteration instantly and continues from the next iteration.
 
 ## [roadmap](#roadmap)
 
