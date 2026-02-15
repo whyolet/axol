@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version: 0.4.1
+axol version: 0.4.2
 
 # core
 
@@ -222,6 +222,35 @@ else={
   print("why?")
 })
 ```
+
+### elif
+
+Options are:
+* Lazy condition evaluation:
+  ```
+  if(c1 then={
+    a1()
+  } else={if(c2 then={
+    a2()
+  } else={
+    a3()
+  })})
+  ```
+* Instant condition evaluation:
+  ```
+  case(true
+    c1 {
+      a1()
+    }
+    c2 {
+      a2()
+    }
+    else={
+      a3()
+    }
+  )
+  ```
+  See real example in [seq](#seq).
 
 ### case
 
@@ -1092,14 +1121,10 @@ pause={native.pause($.0)}
 seq={
   [pos=[start stop=null] kv=[step=1]]=$
   i=start
-  cmp=if(stop|eq(null)
-    then={{true}}
-    else={
-      if(step|gte(0)
-        then={lte}
-        else={gte}
-      )
-    }
+  cmp=case(true
+    stop|eq(null) {{true}}
+    step|gte(0) {lte}
+    else={gte}
   )
   while({i|cmp(stop)} do={
     msg=pause(i)
