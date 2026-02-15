@@ -1,12 +1,17 @@
-![Axolotl](axolotl.png)
+# axol
 
-# [axol](#)
+![axolotl](axolotl.png)
 
-* Minimalist programming language simple to read, write, extend.
-* Axol is named after the axolotl animal for its ability to regrow missing body parts and for being cute.
-* Version: 0.4.0
+* Axolotl is a cute amphibian which can [regrow](https://en.wikipedia.org/wiki/Axolotl#Regeneration) missing body parts.
+* Axol is a minimalist programming language simple to read, write, extend.
+* It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
+* Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-# [draft](#draft)
+axol version: 0.4.1
+
+# core
+
+## string
 
 ```
 print("hello world")
@@ -34,61 +39,68 @@ print("""
 # e"f{g}h\ij
 #   k
 
-f={b}
+print(
+  """
+    l
+    """
+    m
+  """
+)
+# l
+# """
+# m
 
-print(f)
-# {1234567890}
-# (function address is shown
-# instead of function code
-# to be able to compare functions,
-# that may have the same code,
-# yet they are still not the same function)
+print(
+  "
+    n
+    \"
+    o
+  "
+)
+#
+#   n
+#   "
+#   o
+#
 
-print(f)
-# {}
-# (to keep docs simple,
-# let's skip the address...)
+print(
+  "p
+    {b}
+  q"
+)
+# p
+#   c
+# q
+```
 
-print(f)
-# f
-# (...or just show the function name)
+## box
 
-print(f())
+```
+b=["c" "d" key="val" m="n" o="p"]
+
+print(b)
+# ["c" "d" key="val" m="n" o="p"]
+
+print(b.0)
 # c
-# (because f={b} and b="c")
 
-dup={
-  val=$.0
-  "{val}{val}"
-}
+print(b[1])
+# d
 
-print(dup("he"))
-# hehe
-
-g=["he"]
-
-print(g)
-# ["he"]
-
-print(g.0)
-# he
-
-h=["i" "j" key="val" m="n" o="p"]
-
-print(h.1)
-# j
-
-print(h.key)
+print(b.key)
 # val
+
+print(b["m"])
+# n
 
 [
   pos=[q r="s" t="u"]
   kv=[key m="v" w="x"]
   rest=[y]
-]=h
+]=b
 
 print(q r t)
-# i j u
+# c d u
 
 print(key m w)
 # val n x
@@ -102,6 +114,41 @@ print(["a" y...])
 print(["a" o="p" o="q"])
 # ["a" o="q"]
 
+[kv=[a b="c"]]=[]
+# Error: `a` is required
+```
+
+See also: [box functions](#box-functions).
+
+## function
+
+```
+f={b}
+
+print(f)
+# {1234567890}
+```
+
+Function address is shown instead of function code to be able to compare functions that may have the same code but different access to outer names.
+
+To keep the docs simple, let's show either function name or `{}` when a function is printed.
+
+```
+print(f)
+# {}
+
+print(f())
+# c
+# (because f={b} and b="c")
+
+dup={
+  val=$.0
+  "{val}{val}"
+}
+
+print(dup("he"))
+# hehe
+
 greet={
   [pos=[name] kv=[how="hello"]]=$
   print("{how}, {name}!")
@@ -112,6 +159,37 @@ greet("Alice")
 
 greet("Bob" how="hi")
 # hi, Bob!
+
+echo={print($)}
+
+echo("a" "b" c="d")
+# ["a" "b" c="d"]
+
+"a"|echo("b" c="d")
+# ["a" "b" c="d"]
+
+"a"|echo
+# ["a"]
+```
+
+# stdlib
+
+## flow
+
+### if
+### then
+### else
+
+```
+if={
+  [pos=[cond] kv=[
+    then={}
+    else={}
+  ]=$
+  action=native.ternary(cond then else)
+  result=action()
+  return(result)
+}
 
 if(eq(sum(2 2) 4)
   then={print("ok")}
@@ -124,11 +202,6 @@ if(2|sum(2)|eq(4)
   else={"why?"}
 )|print
 # ok
-
-echo={print($)}
-
-"a"|echo("b" c="d")
-# ["a" "b" c="d"] 
 
 then={
   [pos=[cond do]]=$
@@ -148,27 +221,84 @@ else={
 2|sum(2)|eq(4)|else({
   print("why?")
 })
+```
 
-print({42}|is({}))
-# true
+### case
 
-print({42}|is(""))
-# false
+```
+case={
+  [kv=[else={}]]=$
+  items=$|pos
+  expected=items|del(0)
+  while({items} do={
+    [pos=[val action]]=items|del(0 1)
+    val|eq(expected)|else(continue)
+    result=action()
+    return(result from=case)
+  })
+  else()
+}
 
-print("42"|is(""))
-# true
+input("sure? (yes/no): ")|case(
+  "yes" {db.delete(all=true)}
+  "no" {print("no problem")}
+  else={print("assuming \"no\"")}
+)
+```
 
-{
-  print($|is([]))
-}()
-# true
+See also: [input](#input).
 
+### loop
+
+```
+loop={
+  do=$.0
+  native.repeat({
+    err=catch(do)
+    err|then({
+      [
+        pos=[errType=null val=null]
+        kv=[from=do]
+      ]=err
+      errType|case(
+        break {
+          from|eq(do)|else({
+            throw(err)
+          })
+          return(val from=loop)
+        }
+        continue {
+          from|eq(do)|else({
+            throw(err)
+          })
+        }
+        # `return` is handled natively by each `{}`,
+        # not just by `loop({})`
+        else={throw(err)}
+      )
+    })
+  })
+  null
+}
+
+loop({
+  print("Press Ctrl+C to stop this")
+})
+```
+
+See also: [break](#break), [continue](#continue), [return](#return).
+
+### while
+
+```
 while={
-  [pos=[cond] kv=[do={}]]=$
+  [pos=[cond] kv=[do=pause]]=$
   cond|is({})|else({
-    throw("replace while(condition ...) \
-      with while({condition} ...) \
-      to check it many times")
+    throw("""
+      replace while(condition)
+      with while({condition})
+      to check condition many times
+    """)
   })
   loop({
     if(cond() then=do else=break)
@@ -180,92 +310,59 @@ while({i} do={
   i|print
   up(i=i|sub(1))
 })  # 4 3 2 1
+```
 
-[kv=[foo]]=import("./lib.axol")
-foo()
+### each
 
-py=import("python")
-# Not relative.
-# Finds nearest parent dir with
-# `axol/python.axol` file,
-# which may be a symlink
-# (created by a package manager)
-# to the specific version file like
-# `axol/python/3.14.2.axol`,
-# which has auto-generated bindings to CPython 3.14.2
-# including its built-in functions
-# https://docs.python.org/3/library/functions.html
-# like `__import__("package")`
-# https://docs.python.org/3/library/functions.html#import__
-# giving access to python standard library
-# https://docs.python.org/3/library/index.html
-# and installed third-party packages.
-
-dt=py.__import__("datetime")
-
-getNow={
-  dt.datetime.now(dt.UTC).isoformat()
+```
+each={
+  [pos=[items do]]=$
+  loop({
+    [
+      pos=[found key val]
+    ]=native.getNextItem(items)
+    found|else(break)
+    do(key=key val=val)
+  })
 }
 
-print(getNow())
-# 2026-12-31T23:59:59Z
-
-log=[]
-log.levelNames="debug info warn error"|split(" ")
-log.levelLetters=log.levelNames\
-  |map({$.val.0|upper})|join("")
-log.levels=[]
-log.levelNames|each({
-  log.levels[$.val]=$.key
-}]
-log.level=log.levels.info
-log.print=print
-log.do={
-  [pos=[level] rest=[vals]]=$
-  level|lt(log.level)|then(return)
-  letter=log.levelLetters[level]
-  log.print("{getNow()} {letter} {vals}")
-}
-log.levels|each({
-  level=$.val
-  log[$.key]={log.do(level, $...)}
+["a" "b" c="d"]|each({
+  print($.key $.val)
 })
+# 0 a
+# 1 b
+# c d
+```
 
-log.debug("invisible")
+See also `each` definition in [pause](#pause).
 
-log.info("seen")
-# 2026-12-31T23:59:59Z I ["seen"]
+### map
 
-log.error("summary" details=[])
-# 2026-12-31T23:59:59Z E ["summary" details=[]]
-
-print={
-  [kv=[sep=" " end="""
-
-  """]]=$
-  # $|pos|each({...})
+```
+map={
+  [pos=[items do]]=$
+  results=[]
+  $|each({
+    results|add(do($...))
+  })
+  results
 }
 
-print("a" "b")
-# a b
+print("hey"|map({
+  "{$.key}={$.val}"
+}))
+# ["0=h" "1=e" "2=y"]
 
-print("a" "b" sep="" end="")
-print("c")
-# abc
+print(["a" b="c"].map({
+  $.val|upper
+})|join("")
+# AC
+```
 
-input("sure? (yes/no): ")|case(
-  "yes" {delete(all=true)}
-  "no" {print("no problem")}
-  else={print("assuming \"no\"")}
-)
+### bool
+### math
 
-print(env.HOME)
-# /home/me
-
-# ./app.axol a -bc --d=e --foo
-print(cli)
-# ["./app.axol" "a" "-bc" "--d=e" b=true c=true d="e" foo=true]
-
+```
 [false null 0 "" [] {}]|each({
   print(bool($.val) not($.val))
 })
@@ -284,15 +381,184 @@ print(bool("anything else"))
   print($.val(3 2) end=" ")
 })
 # 5 1 6 1.5 1 9
+```
+
+### throw
+### catch
+### trace
+
+```
+throw={
+  err=$
+  err.$trace|else({
+    err.$trace=native.getTraceId()
+  })
+  nearestCatch=native.getCatch()
+  nearestCatch|then({
+    return(err from=nearestCatch)
+  })
+
+  print(err|trace("") file=os.stderr)
+  [pos=[val=null] kv=[$trace] rest=[rest]]=err
+  msg=if(rest
+    then={[val rest...]}
+    else={val}
+  )
+  print("Error: {msg}" file=os.stderr)
+  os.exit(1)
+}
+
+catch={
+  do=$.0
+  native.setCatch()
+  do()
+  return(null)
+}
+
+err=catch({
+  print(1)
+  throw("a" b="c")
+  print(2)
+})
+# 1
+print("finally")
+# finally
+
+print(err)
+# ["a" b="c" $trace=12345]
+
+trace={
+  [pos=[err format=""]]=$
+  traceId=err.$trace
+  items=native.getTraceItems(traceId)
+  case(format
+    [] {items}
+    "" {
+      items|map({
+        [kv=[path line col at]]=$.val
+        "{path} L{line} C{col}
+          {at}"
+      })|join("
+      ")
+    }
+    else={throw("""
+      format should be [] or ""
+    """)}
+  )
+}
+
+print(err|trace([]))
+# [
+#   [path="/path/app.axol" line=42 col=1 at="err=catch({"]
+#   [path="/path/app.axol" line=44 col=3 at="throw(\"a\" b=\"c\")"]
+# ]
+
+print(err|trace(""))
+# /path/app.axol L42 C1
+#   err=catch({
+# /path/app.axol L44 C3
+#   throw("a" b="c")
+
+err2=catch({
+  throw(err)
+})
+print(err2|eq(err))
+# true
+
+throw(err)
+# /path/app.axol L42 C1
+#   e=catch({
+# /path/app.axol L44 C3
+#   throw("a" b="c")
+# Error: ["a" b="c" $trace=12345]
+
+throw("one string only")
+# (trace)
+# Error: one string only
+
+throw("anything" else="here")
+# (trace)
+# Error: ["anything" else="here"]
+```
+
+### break
+### continue
+### return
+
+```
+break={throw(break $...)}
+continue={throw(continue $...)}
+return={throw(return $...)}
+
+here={
+  line=input()
+  line|else(break)
+  line|case(
+    "skip" continue
+    "ret" {return("ok" from=here)}
+  )
+  print(line)
+}
+loop(here)|print
+# (input "ret")
+# ok
+```
+
+See also: [loop](#loop)
+
+## box functions
+
+See also: [box](#box), [each](#each), [map](#map).
+
+### add
+
+```
+add={
+  [pos=[box] kv=[at=-1] rest=[vals]]=$
+  native.add(box at vals|pos)
+}
+
+b=["a" c="d"]
+
+b|add("h" i="j")
+print(b)
+# ["a" "h" c="d" i="j"]
+
+b|add("k" "l" at=0)
+print(b)
+# ["k" "l" "a" "h" c="d" i="j"]
+
+c=["d" e="f"]
+g=["h" [i="j"] k="l"]
+c|add(g flat=true)
+print(c)
+# ["d" "h" [i="j"] e="f" k="l"]
+```
+
+### get
+
+```
+get={
+  [pos=[box from to=null] kv=[default=null]]=$
+  hasDefault="default"|in($|keys)
+  native.get(box from to hasDefault default)
+}
 
 a=["b" "c" "d" e="f"]
+
 print(a.0 a[1 3] a.e a["e"] a["g" default="h"] end=" ")
 # b ["c" "d"] f f h
 
-print(a|del(1 3 default=[]))
-# ["c" "d"]
-print(a)
-# ["b" e="f"]
+print(a|get(0) a|get(1 3) a|get("e") a|get("g" default="h") end=" ")
+# b ["c" "d"] f h
+```
+
+### up
+
+```
+up={
+  native.up($|kv)
+}
 
 a=1
 {
@@ -319,27 +585,61 @@ b=["a" c="d"]
 b|up(c="e" f="g")
 # Error: `f` is not found
 
-b|add("h" i="j")
+b.f="g"
 print(b)
-# ["a" "h" c="d" i="j"]
+# ["a" c="d" f="g"]
+```
 
-b|add("k" "l" at=0)
-print(b)
-# ["k" "l" "a" "h" c="d" i="j"]
+### del
 
-c=["d" e="f"]
-g=["h" [i="j"] k="l"]
-c|add(g flat=true)
-print(c)
-# ["d" "h" [i="j"] e="f" k="l"]
+```
+del={
+  [pos=[box from to=null] kv=[default=null]]=$
+  hasDefault="default"|in($|keys)
+  native.del(box from to hasDefault default)
+}
 
-keys={$.0|map({$.key}))
+a=["b" "c" "d" e="f"]
+
+print(a|del(1 3 default=[]))
+# ["c" "d"]
+
+print(a)
+# ["b" e="f"]
+
+print(a|del(0))
+# b
+
+print(a)
+# [e="f"]
+```
+
+### keys
+
+```
+keys={$.0|map({$.key})}
+
 print(["a" b="c"]|keys)
 # [0 "b"]
+```
 
-vals={$.0|map({$.val}))
+### vals
+
+```
+vals={$.0|map({$.val})}
+
 print(["a" b="c"]|vals)
 # ["a" "c"]
+```
+
+### pos
+### kv
+### len
+
+```
+pos={native.pos($.0)}
+kv={native.kv($.0)}
+len={native.len($.0)}
 
 h=["a" "b" "c" d="e" f="g"]
 
@@ -355,6 +655,20 @@ print(
   h|kv|len
 )
 # 5 3 2
+```
+
+### find
+### in
+
+```
+find={
+  [pos=[where what]]=$
+  where|each({
+    $.val|eq(what)|else(continue)
+    return($.key from=find)
+  })
+  null
+}
 
 print("abc"|find("c"))  # 2
 print("abc"|find("d"))  # null
@@ -368,86 +682,157 @@ in={$.0|find($.1)|ne(null)}
 print("a"|in(e))  # true
 print("c"|in(e))  # false
 print("c"|in(e|keys))  # true
+```
 
-e.$call={print("ok")}
-e()
-# ok
+### $call
 
-err=catch({
-  print(1)
-  throw("a" b="c")
-  print(2)
-})
-# 1
-print("finally")
-# finally
+```
+a=["b" c="d" $call={
+  print(a.c)
+}]
 
-print(err)
-# ["a" b="c" $trace=12345]
+a()
+# d
+```
 
-print(err|trace([]))
-# [
-#   [path="/path/app.axol" line=42 col=1 at="e=catch({"]
-#   [path="/path/app.axol" line=44 col=3 at="throw(\"a\" b=\"c\")"]
-# ]
+## files
 
-print(err|trace(""))
-# /path/app.axol L42 C1
-#   e=catch({
-# /path/app.axol L44 C3
-#   throw("a" b="c")
+### import
 
-err2=catch({
-  throw(err)
-})
-print(err2|eq(err))
-# true
+Relative:
+```
+[kv=[foo bar]]=import("./baz.axol")
 
-throw(err)
-# /path/app.axol L42 C1
-#   e=catch({
-# /path/app.axol L44 C3
-#   throw("a" b="c")
-# Error: ["a" b="c" $trace=12345]
+foo(bar)
+```
 
-throw("one string only")
-# Error: one string only
+Installed:
+```
+py=import("python")
+```
 
-throw("anything" else="here")
-# Error: ["anything" else="here"]
+* It finds the nearest file:
+  * `./axol/lib/python.axol`
+  * `../axol/lib/python.axol`
+  * `../../axol/lib/python.axol`
+  * `../../../axol/lib/python.axol`
+  * ...
+  * `~/.axol/lib/python.axol`
+  * `/opt/axol/lib/python.axol`
+* Such file may be a symlink (created by a package manager using config file) to the specific version in a shared cache, e.g. `~/.axol/0.42.1/lib/python/3.14.2.axol`.
+* It contains auto-generated bindings from axol 0.42.1 to CPython 3.14.2 including its [built-in functions](https://docs.python.org/3/library/functions.html) like [`__import__`](https://docs.python.org/3/library/functions.html#import__) giving access to [Python standard library](https://docs.python.org/3/library/index.html) and installed [third-party packages](https://pypi.org/).
 
-break={throw(break $...)}
-continue={throw(continue $...)}
-return={throw(return $...)}
+```
+dt=py.__import__("datetime")
 
-# loop={
-# each={
-# map={
-#   ...
-#   err=catch(do)
-#   err|then({
-#     err.0|case(
-#       break {...}
-#       continue {...}
-#       return {...}
-#       else={throw(err)}
-
-here={
-  line=input()
-  line|else(break)
-  line|eq("skip")|then(continue)
-  line|eq("ret")|then({
-    return("ok" from=here)
-  })
-  print(line)
+getNow={
+  dt.datetime.now(dt.UTC).isoformat()
 }
-loop(here)|print
-# (input "ret")
-# ok
 
+print(getNow())
+# 2026-12-31T23:59:59Z
+```
+
+### print
+
+```
+print={
+  [kv=[file=os.stdout sep=" " end="
+  "]]=$
+  file.write(
+    $|pos|join(sep)|sum(end)
+  )
+}
+
+print("a" "b")
+# a b
+
+print("a" "b" sep="" end="")
+print("c")
+# abc
+```
+
+### input
+
+```
+input={
+  [kv=[
+    end=""
+    file=os.stdin
+  ] rest=[prompt]]=$
+  rest|then({
+    print(prompt... end=end)
+  })
+  file.readLine()
+}
+
+answer=input("question: ")
+print(answer)
+# (the line you've entered)
+```
+
+See also: (case)[#case].
+
+### cli
+### env
+
+```
+env=os.getEnv()
+cli=os.getCli()
+
+# KEY=VAL ./app.axol a -bc --d=e --foo
+
+print(cli)
+# ["./app.axol" "a" "-bc" "--d=e" b=true c=true d="e" foo=true]
+
+print(env.KEY)
+# VAL
+
+print(env.HOME)
+# /home/me
+```
+
+## singleton
+### log
+
+```
+log=[]
+log.names="debug info warn error crit fatal"|split(" ")
+log.letters=log.names|map({
+  $.val.0|upper
+})
+log.levels=[]  # debug=0 info=1 ...
+log.names|each({
+  log.levels[$.val]=$.key
+}]
+log.level=log.levels.info
+log.print=print
+log.do={
+  [pos=[level] rest=[vals]]=$
+  level|lt(log.level)|then(return)
+  letter=log.letters[level]
+  log.print("{getNow()} {letter} {vals}")
+}
+log.levels|each({
+  level=$.val
+  log[$.key]={log.do(level $...)}
+})
+
+log.debug("invisible")
+
+log.info("seen")
+# 2026-12-31T23:59:59Z I ["seen"]
+
+log.error("summary" details=[])
+# 2026-12-31T23:59:59Z E ["summary" details=[]]
+```
+
+## decorator
+### logged
+
+```
 time=py.__import__("time")
 
-# decorator
 logged={
   [pos=[func] kv=[
     level=log.levels.debug
@@ -482,7 +867,58 @@ foo=logged({
 
 foo("bar")
 # (logs the details)
+```
 
+## context manager
+### with
+### File
+
+See also: [oop][#oop].
+
+```
+File=type({
+  [pos=[path] kv=[mode="r"]]=$
+  file=[]
+  file.handle=os.open(path mode)
+  ["write" "read" "seek" "truncate"]|each({
+    action=$.val
+    file[action]={
+      os[action]($.$me.handle $...)
+    }
+  })
+  file.$close={
+    os.close($.$me.handle)
+  }
+  file
+})
+
+with={
+  [pos=[do] rest=[items]]=$
+  result=null
+  err=catch({
+    up(result=do(items...))
+  })
+  items|each({$.val.$close()})
+  err|then({err|throw})
+  result
+}
+
+with(
+  input=File("input.txt" mode="r")
+  result=File("result.txt" mode="w")
+{
+  $.input.read()|$.result.write
+  throw("test err")
+})
+# (both files are auto-closed)
+# Error: test err
+```
+
+## oop
+
+### $me
+
+```
 a={$}
 print(a("b" c="d"))
 # ["b" c="d"]
@@ -490,7 +926,13 @@ print(a("b" c="d"))
 e=[a={$}]
 print(e.a("b" c="d"))
 # ["b" c="d" $me=e]
+```
 
+### type
+### $type
+### $parent
+
+```
 rootType={[]}
 
 type={
@@ -582,6 +1024,42 @@ print(bob.$type|eq(Cat))
 
 print(bob.$parent.$type|eq(Animal))
 # true
+```
+
+### is
+
+```
+is={
+  [pos=[item expected] kv=[typeOf=null]]=$
+  itemType=item.$type
+  typeOf|then({
+    while({itemType} do={
+      itemType|eq(typeOf)|then({
+        return(true from=is)
+      })
+      up(itemType=itemType.$of)
+    })
+    return(false from=is)
+  })
+  expectedType=expected.$type|or(
+    expected  # it is type already
+  )
+  itemType|eq(expectedType)
+}
+
+print({42}|is({}))
+# true
+
+print({42}|is(""))
+# false
+
+print("42"|is(""))
+# true
+
+{
+  print($|is([]))
+}()
+# true
 
 print(bob|is(Cat))
 # true
@@ -600,50 +1078,28 @@ print(simba.getTypes())
 
 print(Lion.getTypes())
 # [Lion Cat Animal]
+```
 
-File=type({
-  [pos=[path] kv=[mode="r"]]=$
-  file=[]
-  file.handle=fs.open(path mode)
-  ["write" "read" "seek" "truncate"]|each({
-    action=$.val
-    file[action]={
-      fs[action]($.$me.handle $...)
-    }
-  })
-  file.$close={
-    fs.close($.$me.handle)
-  }
-  file
-})
+## concurrency
 
-with={
-  [pos=[do] rest=[items]]=$
-  result=null
-  err=catch({
-    up(result=do(items...))
-  })
-  items|each({$.val.$close()})
-  err|then({err|throw})
-  result
-}
+### pause
+### seq
+### $next
 
-with(
-  input=File("input.txt" mode="r")
-  result=File("result.txt" mode="w")
-{
-  $.input.read()|$.result.write
-  throw("test err")
-})
-# (both files are auto-closed)
-# Error: test err
+```
+pause={native.pause($.0)}
 
 seq={
-  [pos=[start stop] kv=[step=1]]=$
+  [pos=[start stop=null] kv=[step=1]]=$
   i=start
-  cmp=if(step|gte(0)
-    then={lte}
-    else={gte}
+  cmp=if(stop|eq(null)
+    then={{true}}
+    else={
+      if(step|gte(0)
+        then={lte}
+        else={gte}
+      )
+    }
   )
   while({i|cmp(stop)} do={
     msg=pause(i)
@@ -653,6 +1109,7 @@ seq={
     })
     up(i=i|sum(step))
   })
+  return(i)
 }
 
 a=seq(1 3)
@@ -697,7 +1154,7 @@ each={
     })
     return(from=each)
   })
-  # ...
+  # (main `each` code here)
 }
 
 seq(1 100)|each({print($.val)})
@@ -705,7 +1162,11 @@ seq(1 100)|each({print($.val)})
 # 2
 # ...
 # 100
+```
 
+### Task
+
+```
 tasks=[]
 
 Task=type({
@@ -720,11 +1181,16 @@ Task=type({
   task.done|else({tasks|add(task)})
   task
 })
+```
 
-# This is the main loop,
-# which executes all tasks,
-# including `mainTask` auto-created
-# from the main code of the app.
+See [mainLoop](#mainLoop).
+
+### mainLoop
+
+This is the main loop which executes all tasks,
+including the `mainTask` auto-created from the main code of the app.
+
+```
 mainLoop={
   while({tasks} do={
     tasks|each({
@@ -766,11 +1232,14 @@ print(task)
 #   $type=Task $parent=[]]
 
 pause()
-# (mainTask.result.$next() returns
-# to mainLoop, which checks other tasks,
-# and then calls mainTask.result.$next() again,
-# so this pause() returns here)
+```
 
+* The `mainTask.result.$next()` returns in the `mainLoop`.
+* The `mainLoop` checks other tasks,
+* and then calls `mainTask.result.$next()` again,
+* so this `pause()` returns here in the `mainTask`.
+
+```
 print(task)
 # [done=true result=4 err=null
 # $type=Task $parent=[]]
@@ -785,7 +1254,11 @@ instant=Task(f "ok")
 print(instant)
 # [done=true result=42 err=null
 # $type=Task $parent=[]]
+```
 
+### await
+
+```
 await={
   [kv=[done=null err=1 ok=null]]=$
   need=[done=done err=err ok=ok]
@@ -873,7 +1346,11 @@ await(bad)
 # (trace to seq)
 #   up(i=i|sum(step))
 # Error: cannot sum(4 {})
+```
 
+### async
+
+```
 async={
   func=$.0
   {Task(func $...)}
