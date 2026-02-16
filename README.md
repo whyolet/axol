@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version: 0.4.2
+axol version 0.4.3
 
 # core
 
@@ -84,14 +84,8 @@ print(b)
 print(b.0)
 # c
 
-print(b[1])
-# d
-
 print(b.key)
 # val
-
-print(b["m"])
-# n
 
 [
   pos=[q r="s" t="u"]
@@ -260,7 +254,7 @@ case={
   items=$|pos
   expected=items|del(0)
   while({items} do={
-    [pos=[val action]]=items|del(0 1)
+    [pos=[val action]]=items|del(0 len=2)
     val|eq(expected)|else(continue)
     result=action()
     return(result from=case)
@@ -543,50 +537,138 @@ See also: [box](#box), [each](#each), [map](#map).
 
 ```
 add={
-  [pos=[box] kv=[at=-1] rest=[vals]]=$
-  native.add(box at vals|pos)
+  [
+    pos=[box]
+    kv=[at=-1 flat=false]
+    rest=[rest]
+  ]=$
+  vals=rest|pos
+  rest|kv|then({
+    throw("box|add(key=val) should be either:
+      box.key=val
+      box|up(key=val)
+      box|add([key=val] flat=true)
+    ")
+  })
+  native.add(box at vals flat)
 }
 
 b=["a" c="d"]
 
-b|add("h" i="j")
+b|add("h")
 print(b)
-# ["a" "h" c="d" i="j"]
+# ["a" "h" c="d"]
 
 b|add("k" "l" at=0)
 print(b)
-# ["k" "l" "a" "h" c="d" i="j"]
+# ["k" "l" "a" "h" c="d"]
 
-c=["d" e="f"]
-g=["h" [i="j"] k="l"]
-c|add(g flat=true)
-print(c)
-# ["d" "h" [i="j"] e="f" k="l"]
+b=["a" c="d"]
+b|add([
+  "h" [i="j"]
+  c="k" l="m"
+] flat=true)
+print(b)
+# ["a" "h" [i="j"] c="k" l="m"]
 ```
 
 ### get
 
 ```
 get={
-  [pos=[box from to=null] kv=[default=null]]=$
+  [
+    pos=[box key]
+    kv=[len=null default=null]
+  ]=$
   hasDefault="default"|in($|keys)
-  native.get(box from to hasDefault default)
+  native.get(box key len hasDefault default)
 }
 
 a=["b" "c" "d" e="f"]
 
-print(a.0 a[1 3] a.e a["e"] a["g" default="h"] end=" ")
-# b ["c" "d"] f f h
+print(a|get(0))
+# b
 
-print(a|get(0) a|get(1 3) a|get("e") a|get("g" default="h") end=" ")
-# b ["c" "d"] f h
+print(a|get(0 len=1))
+# ["b"]
+
+print(a|get(1 len=2))
+# ["c" "d"]
+
+print(a|get("E"|lower))
+# f
+
+print(a|get("g" default="h"))
+# h
+```
+
+### set
+
+```
+set={
+  [
+    pos=[box key val]
+    kv=[len=null]
+    rest=[rest]
+  ]=$
+  rest|then({
+    throw("add(vals...), set(key val)")
+  })
+  native.set(box key len val)
+}
+
+b=["a" "c" d="e"]
+
+b|set("d" "f")
+print(b)
+# ["a" "c" d="f"]
+
+b|set(0 len=2 ["g"])
+print(b)
+# ["g" d="f"]
 ```
 
 ### up
 
 ```
 up={
-  native.up($|kv)
+  [pos=[box=null]]=$
+  items=$|kv
+
+  box|then({
+    items|each({
+      [kv=[key]]=$
+      key|in(box|keys)|else({
+        throw("`{key}` is not found")
+      })
+    })
+    items|each({
+      [kv=[key val]]=$
+      box|set(key val)
+    })
+    return
+  })
+
+  plan=[]
+  items|each({
+    [kv=[key val]]=$
+    here=native.getScope()
+    scope=here.parent.parent
+    while({not(
+      key|in(scope.box|keys)
+    )} do={
+      scope.parent.else({
+        throw("`{key}` is not found")
+      })
+      here.box.scope=scope.parent
+    })
+    plan|add([box=scope.box key=key val=val])
+  })
+
+  plan|each({
+    [kv=[box key val]]=$.val
+    box|set(key val)
+  })
 }
 
 a=1
@@ -613,34 +695,39 @@ up(never=3)
 b=["a" c="d"]
 b|up(c="e" f="g")
 # Error: `f` is not found
-
-b.f="g"
-print(b)
-# ["a" c="d" f="g"]
 ```
 
 ### del
 
 ```
 del={
-  [pos=[box from to=null] kv=[default=null]]=$
+  [
+    pos=[box key]
+    kv=[len=null default=null]
+  ]=$
   hasDefault="default"|in($|keys)
-  native.del(box from to hasDefault default)
+  native.del(box key len hasDefault default)
 }
 
 a=["b" "c" "d" e="f"]
 
-print(a|del(1 3 default=[]))
+print(a|del(1 len=2))
 # ["c" "d"]
 
 print(a)
 # ["b" e="f"]
 
-print(a|del(0))
-# b
+print(a|del("e"))
+# f
 
 print(a)
-# [e="f"]
+# ["b"]
+
+print(a|del("e"))
+# Error: `e` is not found
+
+print(a|del("e" default="g"))
+# g
 ```
 
 ### keys
@@ -832,19 +919,21 @@ log.letters=log.names|map({
 })
 log.levels=[]  # debug=0 info=1 ...
 log.names|each({
-  log.levels[$.val]=$.key
+  log.levels|set($.val $.key)
 }]
 log.level=log.levels.info
 log.print=print
 log.do={
   [pos=[level] rest=[vals]]=$
   level|lt(log.level)|then(return)
-  letter=log.letters[level]
+  letter=log.letters|get(level)
   log.print("{getNow()} {letter} {vals}")
 }
 log.levels|each({
   level=$.val
-  log[$.key]={log.do(level $...)}
+  log|set($.key {
+    log.do(level $...)
+  })
 })
 
 log.debug("invisible")
@@ -910,10 +999,12 @@ File=type({
   file=[]
   file.handle=os.open(path mode)
   ["write" "read" "seek" "truncate"]|each({
-    action=$.val
-    file[action]={
-      os[action]($.$me.handle $...)
-    }
+    actionKey=$.val
+    action=os|get(actionKey)
+    file|set(actionKey {
+      [kv=[$me] rest=[rest]]=$
+      action($me.handle rest...)
+    })
   })
   file.$close={
     os.close($.$me.handle)
@@ -1119,7 +1210,10 @@ print(Lion.getTypes())
 pause={native.pause($.0)}
 
 seq={
-  [pos=[start stop=null] kv=[step=1]]=$
+  [
+    pos=[start stop=null]
+    kv=[step=1]
+  ]=$
   i=start
   cmp=case(true
     stop|eq(null) {{true}}
