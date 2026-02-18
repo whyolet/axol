@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.6
+axol version 0.4.7
 
 # core
 
@@ -117,24 +117,23 @@ See also: [box functions](#box-functions).
 ## function
 
 ```
-f={b}
+f={a}
 
-print(f)
-# {1234567890}
-```
-
-Function address is shown instead of function code to be able to compare functions that may have the same code but different access to outer names.
-
-To keep the docs simple, let's show either function name or `{}` when a function is printed.
-
-```
-print(f)
-# {}
+a="b"
 
 print(f())
-# c
-# (because f={b} and b="c")
+# b
+
+print(f)
+# {$key="f"}
+
+print([f=f])
+# [f={}]
 ```
+
+Function [$key](key) is printed instead of a usually long function code.
+
+`f={$key="f"}` is printed as `f={}` for brevity.
 
 ### $
 
@@ -242,6 +241,25 @@ e.f(j="k" $me=c)
 ```
 
 See also: [oop](#oop).
+
+### $here
+
+`$here` is a box with keys and values set in the function.
+
+```
+a="b"
+
+f={
+  a="c"
+  print($here)
+}
+
+f()
+# [a="c"]
+
+print($here)
+# [a="b" f={}]
+```
 
 ### $outer
 
@@ -464,9 +482,10 @@ while={
 
 i=4
 while({i} do={
-  i|print
+  i|print(end=" ")
   up(i=i|sub(1))
-})  # 4 3 2 1
+})
+# 4 3 2 1
 ```
 
 ### each
@@ -948,7 +967,7 @@ print("c"|in(e|keys))  # true
 
 ```
 a=["b" c="d" $call={
-  print(a.c)
+  print($me.c)
 }]
 
 a()
@@ -1281,12 +1300,12 @@ print(bob)
 #   isAwake=true
 #   mood=2
 #   talk={}
-#   $type=Cat
+#   $type={$key="Cat"}
 #   $parent=[
 #     getTaxonomy={}
 #     isAwake=true
 #     talk={}
-#     $type=Animal
+#     $type={$key="Animal"}
 #     $parent=[]
 #   ]
 # ]
@@ -1309,7 +1328,10 @@ print(bob.$parent.$type|eq(Animal))
 
 ```
 is={
-  [pos=[item expected] kv=[typeOf=null]]=$
+  [
+    pos=[item expected=null]
+    kv=[typeOf=null]
+  ]=$
   itemType=item.$type
   typeOf|then({
     while({itemType} do={
@@ -1541,7 +1563,9 @@ print(task)
 #   done=false
 #   result=[$next={}]
 #   err=null
-#   $type=Task $parent=[]]
+#   $type={$key="Task"}
+#   $parent=[]
+# ]
 
 pause()
 ```
@@ -1554,7 +1578,7 @@ pause()
 ```
 print(task)
 # [done=true result=4 err=null
-# $type=Task $parent=[]]
+# $type={$key="Task"} $parent=[]]
 
 f={
   print($.0)
@@ -1565,7 +1589,7 @@ instant=Task(f "ok")
 
 print(instant)
 # [done=true result=42 err=null
-# $type=Task $parent=[]]
+# $type={$key="Task"} $parent=[]]
 ```
 
 ### await
@@ -1652,12 +1676,14 @@ print(bad)
 #   done=false
 #   result=[$next={}]
 #   err=null
-#   $type=Task $parent=[]]
+#   $type={$key="Task"}
+#   $parent=[]
+# ]
 
 await(bad)
 # (trace to seq)
 #   up(i=i|sum(step))
-# Error: cannot sum(4 {})
+# Error: cannot sum(4 {$key="step"})
 ```
 
 ### async
