@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.5
+axol version 0.4.6
 
 # core
 
@@ -280,8 +280,6 @@ See also: [up](#up).
 ## flow
 
 ### if
-### then
-### else
 
 ```
 if={
@@ -305,10 +303,14 @@ if(2|sum(2)|eq(4)
   else={"why?"}
 )|print
 # ok
+```
 
+### then
+
+```
 then={
   [pos=[cond do]]=$
-  if(cond then=do)
+  if(cond then=do else={cond})
 }
 
 2|sum(2)|eq(4)|then({
@@ -316,44 +318,67 @@ then={
 })
 # ok
 
+print("a"|then({"b"}))
+# b
+
+print([]|then({"c"}))
+# []
+```
+
+See also: [and](#bool).
+
+### else
+
+```
 else={
   [pos=[cond do]]=$
-  if(cond else=do)
+  if(cond then={cond} else=do)
 }
 
 2|sum(2)|eq(4)|else({
   print("why?")
 })
+
+print("a"|else({"b"}))
+# a
+
+print([]|else({"c"}))
+# c
 ```
+
+See also: [or](#bool).
 
 ### elif
 
-Options are:
-* Lazy condition evaluation:
-  ```
-  if(c1 then={
+Lazy condition evaluation:
+
+```
+if(c1 then={
+  a1()
+} else={if(c2 then={
+  a2()
+} else={
+  a3()
+})})
+```
+
+Instant condition evaluation:
+
+```
+case(true
+  c1 {
     a1()
-  } else={if(c2 then={
+  }
+  c2 {
     a2()
-  } else={
+  }
+  else={
     a3()
-  })})
-  ```
-* Instant condition evaluation:
-  ```
-  case(true
-    c1 {
-      a1()
-    }
-    c2 {
-      a2()
-    }
-    else={
-      a3()
-    }
-  )
-  ```
-  See real example in [seq](#seq).
+  }
+)
+```
+
+See real example in [seq](#seq).
 
 ### case
 
