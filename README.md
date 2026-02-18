@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.4
+axol version 0.4.5
 
 # core
 
@@ -1125,6 +1125,7 @@ foo("bar")
 
 ## context manager
 ### with
+### $close
 ### File
 
 See also: [oop](#oop).
@@ -1153,7 +1154,11 @@ with={
   err=catch({
     up(result=do(items...))
   })
-  items|each({$.val.$close()})
+  items|each({
+    catch({
+      $.val.$close()
+    })
+  })
   err|then({err|throw})
   result
 }
