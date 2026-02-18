@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.3
+axol version 0.4.4
 
 # core
 
@@ -134,7 +134,13 @@ print(f)
 print(f())
 # c
 # (because f={b} and b="c")
+```
 
+### $
+
+`$` is a box with the arguments the function was called with.
+
+```
 dup={
   val=$.0
   "{val}{val}"
@@ -165,6 +171,109 @@ echo("a" "b" c="d")
 "a"|echo
 # ["a"]
 ```
+
+### $key
+
+`$key` is the first key the function was set to.
+
+```
+f={print($key)}
+f()
+# f
+
+g={
+  [pos=[h]]=$
+  h()
+}
+
+g(f)
+# f
+
+g({
+  print($key)
+})
+# h
+
+{
+  print($key)
+}()
+# null
+```
+
+### $me
+
+`$me` is the last box the function was got from.
+
+```
+f={print($me)}
+
+f()
+# null
+
+a=["b" f=f]
+c=["d" f=f]
+
+a.f()
+# ["b" f={}]
+
+c.f()
+# ["d" f={}]
+
+f2=a|get("f")
+f2()
+# ["b" f={}]
+```
+
+`$me` can be overridden, it is not kept in the `$` box:
+
+```
+f($me=c)
+# ["d" f={}]
+
+e=["g" f={
+  print($ $me)
+}]
+
+e.f(h="i")
+# [h="i"] ["g" f={}]
+
+e.f(j="k" $me=c)
+# [j="k"] ["d" f={}]
+```
+
+See also: [oop](#oop).
+
+### $outer
+
+`$outer` is a box the function was created at.
+
+```
+a="b"
+f={print($outer)}
+true|then({
+  a="c"
+  f()
+})
+# [a="b"]
+```
+
+See also: [up](#up).
+
+### $caller
+
+`$caller` is a box the function was called from.
+
+```
+a="b"
+f={print($caller)}
+true|then({
+  a="c"
+  f()
+})
+# [a="c"]
+```
+
+See also: [up](#up).
 
 # stdlib
 
@@ -598,6 +707,9 @@ print(a|get(1 len=2))
 print(a|get("E"|lower))
 # f
 
+print(a|get("g"))
+# Error: `g` is not found
+
 print(a|get("g" default="h"))
 # h
 ```
@@ -639,7 +751,7 @@ up={
     items|each({
       [kv=[key]]=$
       key|in(box|keys)|else({
-        throw("`{key}` is not found")
+        throw(KeyError(key))
       })
     })
     items|each({
@@ -650,19 +762,24 @@ up={
   })
 
   plan=[]
+  callerOfUp=$caller
   items|each({
     [kv=[key val]]=$
-    here=native.getScope()
-    scope=here.parent.parent
+    current=[box=callerOfUp]
     while({not(
-      key|in(scope.box|keys)
+      key|in(current.box|keys)
     )} do={
-      scope.parent.else({
-        throw("`{key}` is not found")
+      outerBox=current.box.$outer
+      outerBox.else({
+        throw(KeyError(key))
       })
-      here.box.scope=scope.parent
+      current.box=outerBox
     })
-    plan|add([box=scope.box key=key val=val])
+    plan|add([
+      box=current.box
+      key=key
+      val=val
+    ])
   })
 
   plan|each({
@@ -696,6 +813,8 @@ b=["a" c="d"]
 b|up(c="e" f="g")
 # Error: `f` is not found
 ```
+
+See also: [$outer](#outer), [$caller](caller).
 
 ### del
 
@@ -811,6 +930,23 @@ a()
 # d
 ```
 
+### $str
+
+```
+b=[name="Bob" $str={
+  "{$me.name} in the box"
+}]
+
+print(b)
+# Bob in the box
+
+b.name="Joe"
+print("and {b} too")
+# and Joe in the box too
+```
+
+See also: [Error](#Error)
+
 ## files
 
 ### import
@@ -887,7 +1023,7 @@ print(answer)
 # (the line you've entered)
 ```
 
-See also: (case)[#case].
+See also: [case](#case).
 
 ### cli
 ### env
@@ -991,7 +1127,7 @@ foo("bar")
 ### with
 ### File
 
-See also: [oop][#oop].
+See also: [oop](#oop).
 
 ```
 File=type({
@@ -1002,12 +1138,11 @@ File=type({
     actionKey=$.val
     action=os|get(actionKey)
     file|set(actionKey {
-      [kv=[$me] rest=[rest]]=$
-      action($me.handle rest...)
+      action($me.handle $...)
     })
   })
   file.$close={
-    os.close($.$me.handle)
+    os.close($me.handle)
   }
   file
 })
@@ -1036,17 +1171,7 @@ with(
 
 ## oop
 
-### $me
-
-```
-a={$}
-print(a("b" c="d"))
-# ["b" c="d"]
-
-e=[a={$}]
-print(e.a("b" c="d"))
-# ["b" c="d" $me=e]
-```
+See also: [$me](#me).
 
 ### type
 ### $type
@@ -1060,7 +1185,11 @@ type={
     kv=[of=rootType]
     pos=[make=rootType]
   ]=$
-  $type=[of... $of=of]
+  $type=[
+    of...
+    $of=of
+    $key=$key
+  ]
   $type.$call={
     parent=of($...)
     onlyMe=make($...)
@@ -1080,21 +1209,21 @@ type={
 Animal=type({[
   isAwake=true
   talk={
-    $.$me.isAwake|then(return)
+    $me.isAwake|then(return)
     throw("too sleepy")
   }
 ]})
 
-Animal.getTypes={
-  item=$.$me.$type|or($.$me)
-  items=[]
-  while({item|and(
-    item|ne(rootType)
+Animal.getTaxonomy={
+  cur=[type=$me.$type|or($me)]
+  taxonomy=[]
+  while({cur.type|and(
+    cur.type|ne(rootType)
   )} do={
-    items|add(item)
-    up(item=item.$of)
+    taxonomy|add(cur.type.$key)
+    cur.type=cur.type.$of
   })
-  items
+  taxonomy
 }
 
 Cat=type(of=Animal {
@@ -1102,9 +1231,9 @@ Cat=type(of=Animal {
   [
     mood=mood
     talk={
-      $.$me.$parent.talk(
+      $me.$parent.talk(
         $...
-        $me=$.$me
+        $me=$me
       )
       print(["meow"]\
         |mul($me.mood)\
@@ -1118,13 +1247,13 @@ bob=Cat()
 
 print(bob)
 # [
-#   getTypes={}
+#   getTaxonomy={}
 #   isAwake=true
 #   mood=2
 #   talk={}
 #   $type=Cat
 #   $parent=[
-#     getTypes={}
+#     getTaxonomy={}
 #     isAwake=true
 #     talk={}
 #     $type=Animal
@@ -1193,11 +1322,45 @@ print(Cat|is(typeOf=Animal))
 Lion=type(of=Cat)
 simba=Lion(mood=1)
 
-print(simba.getTypes())
-# [Lion Cat Animal]
+print(simba.getTaxonomy())
+# ["Lion" "Cat" "Animal"]
 
-print(Lion.getTypes())
-# [Lion Cat Animal]
+print(Lion.getTaxonomy())
+# ["Lion" "Cat" "Animal"]
+```
+
+### Error
+### KeyError
+
+```
+Error=type()
+
+KeyError=type(of=Error {
+  [pos=[key]]=$
+  [
+    key=key
+    $str={"`{$me.key}` is not found"}
+  ]
+})
+
+err=KeyError("foo")
+
+print(err.$key err.key)
+# KeyError foo
+
+throw(err)
+# Error: `foo` is not found
+
+case(true
+  err|is(KeyError) {
+    print("ok")
+  }
+  err|is(Error) {
+    print("not ok")
+  }
+  else={err|throw}
+)
+# ok
 ```
 
 ## concurrency
