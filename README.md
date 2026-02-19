@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.7
+axol version 0.4.8
 
 # core
 
@@ -131,7 +131,7 @@ print([f=f])
 # [f={}]
 ```
 
-Function [$key](key) is printed instead of a usually long function code.
+Function [$key](#key) is printed instead of a usually long function code.
 
 `f={$key="f"}` is printed as `f={}` for brevity.
 
@@ -263,7 +263,7 @@ print($here)
 
 ### $outer
 
-`$outer` is a box the function was created at.
+`$outer` is a [$here](here) box of a function that created the current function.
 
 ```
 a="b"
@@ -272,7 +272,7 @@ true|then({
   a="c"
   f()
 })
-# [a="b"]
+# [a="b" f={}]
 ```
 
 See also: [up](#up).
