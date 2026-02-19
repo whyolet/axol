@@ -301,9 +301,9 @@ See also: [up](#up).
 
 ```
 if={
-  [pos=[cond] kv=[
-    then={}
-    else={}
+  [
+    pos=[cond]
+    kv=[then={} else={}]
   ]=$
   action=native.ternary(cond then else)
   result=action()
