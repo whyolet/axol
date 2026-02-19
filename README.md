@@ -263,7 +263,7 @@ print($here)
 
 ### $outer
 
-`$outer` is a [$here](here) box of a function that created the current function.
+`$outer` is a [$here](#here) box of a function that created the current function.
 
 ```
 a="b"
