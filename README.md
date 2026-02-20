@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.9
+axol version 0.4.10
 
 # core
 
@@ -171,6 +171,13 @@ echo("a" "b" c="d")
 # ["a"]
 ```
 
+While valid, one-liner functions are less readable:
+
+```
+{val=$.0 "{val}{val}"}("no")
+# nono
+```
+
 ### $key
 
 `$key` is the first key the function was set to.
@@ -297,6 +304,23 @@ See also: [up](#up).
 
 ## flow
 
+### te
+
+`te` reads as "then/else" or "ternary".
+
+```
+te={
+  [pos=[cond thenVal elseVal]]=$
+  native.ternary(cond|bool thenVal elseVal)
+}
+
+print("foo"|te("yes" "no"))
+# yes
+
+print([]|te("yes" "no"))
+# no
+```
+
 ### if
 
 ```
@@ -305,7 +329,7 @@ if={
     pos=[cond]
     kv=[then={} else={}]
   ]=$
-  action=native.ternary(cond then else)
+  action=cond|te(then else)
   result=action()
   return(result)
 }
@@ -320,6 +344,9 @@ if(2|sum(2)|eq(4)
   then={"ok"}
   else={"why?"}
 )|print
+# ok
+
+2|sum(2)|eq(4)|te("ok" "why?")|print
 # ok
 ```
 
@@ -1079,8 +1106,14 @@ cli=os.getCli()
 
 # KEY=VAL ./app.axol a -bc --d=e --foo
 
-print(cli)
-# ["./app.axol" "a" "-bc" "--d=e" b=true c=true d="e" foo=true]
+print(cli|pos)
+# ["./app.axol" "a" "-bc" "--d=e" "--foo"]
+
+print(cli|kv)
+# [b=true c=true d="e" foo=true]
+
+print(cli.d)
+# e
 
 print(env.KEY)
 # VAL
@@ -1170,7 +1203,7 @@ foo("bar")
 
 ## context manager
 ### with
-### $close
+### $without
 ### File
 
 See also: [oop](#oop).
@@ -1180,28 +1213,26 @@ File=type({
   [pos=[path] kv=[mode="r"]]=$
   file=[]
   file.handle=os.open(path mode)
-  ["write" "read" "seek" "truncate"]|each({
+  ["write" "read" "seek" "truncate" "close"]|each({
     actionKey=$.val
     action=os|get(actionKey)
     file|set(actionKey {
       action($me.handle $...)
     })
   })
-  file.$close={
-    os.close($me.handle)
-  }
+  file.$without={$me.close()}
   file
 })
 
 with={
-  [pos=[do] rest=[items]]=$
+  [kv=[do] rest=[items]]=$
   result=null
   err=catch({
     up(result=do(items...))
   })
   items|each({
     catch({
-      $.val.$close()
+      $.val.$without()
     })
   })
   err|then({err|throw})
@@ -1211,12 +1242,25 @@ with={
 with(
   input=File("input.txt" mode="r")
   result=File("result.txt" mode="w")
-{
-  $.input.read()|$.result.write
-  throw("test err")
-})
+  do={
+    $.input.read()|$.result.write
+    throw("test err")
+  }
+)
 # (both files are auto-closed)
 # Error: test err
+
+with(mutex.read() do={
+  # throw or not
+  if(needed then={
+    with(mutex.write() do={
+      # throw or not
+    })
+    # (write-lock is auto-released)
+  })
+  # throw or not
+})
+# (read-lock is auto-released)
 ```
 
 ## oop
