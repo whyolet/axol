@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.8
+axol version 0.4.9
 
 # core
 
@@ -494,9 +494,10 @@ while({i} do={
 each={
   [pos=[items do]]=$
   loop({
+    key=null
     [
       pos=[found key val]
-    ]=native.getNextItem(items)
+    ]=native.getNextItem(items key)
     found|else(break)
     do(key=key val=val)
   })
@@ -1426,16 +1427,16 @@ pause={native.pause($.0)}
 
 seq={
   [
-    pos=[start stop=null]
-    kv=[step=1]
+    pos=[from]
+    kv=[to=null step=1]
   ]=$
-  i=start
+  i=from
   cmp=case(true
-    stop|eq(null) {{true}}
+    to|eq(null) {{true}}
     step|gte(0) {lte}
     else={gte}
   )
-  while({i|cmp(stop)} do={
+  while({i|cmp(to)} do={
     msg=pause(i)
     msg.restart|ne(null)|then({
       up(i=msg.restart)
@@ -1446,7 +1447,7 @@ seq={
   return(i)
 }
 
-a=seq(1 3)
+a=seq(1 to=3)
 print(a)
 # [$next={}]
 
@@ -1491,11 +1492,17 @@ each={
   # (main `each` code here)
 }
 
-seq(1 100)|each({print($.val)})
+seq(1 to=100)|each({print($.val)})
 # 1
 # 2
 # ...
 # 100
+
+seq(0 step=-2)|each({print($.val)})
+# 0
+# -2
+# -4
+# (and so on until Ctrl+C)
 ```
 
 ### Task
@@ -1556,7 +1563,7 @@ mainLoop={
   })
 }
 
-task=Task(seq 1 3)
+task=Task(seq 1 to=3)
 
 print(task)
 # [
@@ -1656,8 +1663,8 @@ await={
   )
 }
 
-one=Task(seq 1 10)
-another=Task(seq 2 20)
+one=Task(seq 1 to=10)
+another=Task(seq 2 to=20)
 await(one another)
 
 print(one.done another.done)
@@ -1666,11 +1673,11 @@ print(one.done another.done)
 print(one.result another.result)
 # 11 21
 
-result=await(Task(seq 3 30))
+result=await(Task(seq 3 to=30))
 print(result)
 # 31
 
-bad=Task(seq 4 40 step={})
+bad=Task(seq 4 to=40 step={})
 print(bad)
 # [
 #   done=false
@@ -1696,7 +1703,7 @@ async={
 
 aseq=async(seq)
 
-print(await(aseq(5 50)))
+print(await(aseq(5 to=50)))
 # 51
 
 afoo=async({
