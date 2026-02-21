@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.11
+axol version 0.4.12
 
 # core
 
@@ -311,7 +311,10 @@ See also: [up](#up).
 ```
 te={
   [pos=[cond thenVal elseVal]]=$
-  native.ternary(cond|bool thenVal elseVal)
+  if(cond
+    then={thenVal}
+    else={elseVal}
+  )
 }
 
 print("foo"|te("yes" "no"))
@@ -453,24 +456,20 @@ loop={
     err=catch(do)
     err|then({
       [
-        pos=[errType=null val=null]
+        pos=[head=null val=null]
         kv=[from=do]
       ]=err
-      errType|case(
+      our=from|eq(do)
+      case(head
         break {
-          from|eq(do)|else({
-            throw(err)
-          })
+          our|else({err|throw})
           return(val from=loop)
         }
         continue {
-          from|eq(do)|else({
-            throw(err)
-          })
+          our|else({err|throw})
         }
-        # `return` is handled natively by each `{}`,
-        # not just by `loop({})`
-        else={throw(err)}
+        # `return` is handled natively by each `{}`, not just by `loop`
+        else={err|throw}
       )
     })
   })
