@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.10
+axol version 0.4.11
 
 # core
 
@@ -327,12 +327,36 @@ print([]|te("yes" "no"))
 if={
   [
     pos=[cond]
-    kv=[then={} else={}]
+    kv=[then={} elif=[] else={}]
   ]=$
-  action=cond|te(then else)
-  result=action()
-  return(result)
+  native.ifThen(cond|bool {
+    return(then() from=if)
+  })
+  native.ifThen(elif|bool {
+    # This extra `ifThen` avoids eternal loop between this `if` and another `if` inside the `while`.
+    while({elif} do={
+      [pos=[cond then]]=elif|del(0 len=2)
+      native.ifThen(cond|bool {
+        return(then() from=if)
+      })
+    })
+  })
+  else()
 }
+
+if("cond1" then={
+  print(1)
+} elif=[{"cond2"} {
+  print(2)
+} {"cond3"} {
+  print(3)
+} {"cond4"} {
+  print(4)
+}] else={
+  print(5)
+})
+# 1
+# (try replacing "cond1" with "")
 
 if(eq(sum(2 2) 4)
   then={print("ok")}
@@ -349,6 +373,8 @@ if(2|sum(2)|eq(4)
 2|sum(2)|eq(4)|te("ok" "why?")|print
 # ok
 ```
+
+See also [seq](#seq) and [Error](#Error) for real `elif` examples.
 
 ### then
 
@@ -392,38 +418,6 @@ print([]|else({"c"}))
 ```
 
 See also: [or](#bool).
-
-### elif
-
-Lazy condition evaluation:
-
-```
-if(c1 then={
-  a1()
-} else={if(c2 then={
-  a2()
-} else={
-  a3()
-})})
-```
-
-Instant condition evaluation:
-
-```
-case(true
-  c1 {
-    a1()
-  }
-  c2 {
-    a2()
-  }
-  else={
-    a3()
-  }
-)
-```
-
-See real example in [seq](#seq).
 
 ### case
 
@@ -1448,15 +1442,11 @@ print(err.$key err.key)
 throw(err)
 # Error: `foo` is not found
 
-case(true
-  err|is(KeyError) {
-    print("ok")
-  }
-  err|is(Error) {
-    print("not ok")
-  }
-  else={err|throw}
-)
+if(err|is(KeyError) {
+  print("ok")
+} elif=[{err|is(Error)} {
+  print("it is, but matched above")
+}] else={err|throw})
 # ok
 ```
 
@@ -1475,11 +1465,13 @@ seq={
     kv=[to=null step=1]
   ]=$
   i=from
-  cmp=case(true
-    to|eq(null) {{true}}
-    step|gte(0) {lte}
-    else={gte}
-  )
+  cmp=if(to|eq(null) then={
+    {true}
+  } elif=[{step|gte(0)} {
+    lte
+  }] else={
+    gte
+  })
   while({i|cmp(to)} do={
     msg=pause(i)
     msg.restart|ne(null)|then({
