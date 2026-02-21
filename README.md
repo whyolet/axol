@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.12
+axol version 0.4.13
 
 # core
 
@@ -459,15 +459,10 @@ loop={
         pos=[head=null val=null]
         kv=[from=do]
       ]=err
-      our=from|eq(do)
+      from|eq(do)|else({err|throw})
       case(head
-        break {
-          our|else({err|throw})
-          return(val from=loop)
-        }
-        continue {
-          our|else({err|throw})
-        }
+        break {return(val from=loop)}
+        continue {}
         # `return` is handled natively by each `{}`, not just by `loop`
         else={err|throw}
       )
