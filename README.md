@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.14
+axol version 0.4.15
 
 # core
 
@@ -377,7 +377,7 @@ if(2|sum(2)|eq(4)
 # ok
 ```
 
-See also [seq](#seq) and [Error](#Error) for real `elif` examples.
+See also [from](#from) and [Error](#Error) for real `elif` examples.
 
 ### then
 
@@ -1451,18 +1451,15 @@ if(err|is(KeyError) {
 ## concurrency
 
 ### pause
-### seq
+### from
 ### $next
 
 ```
 pause={native.pause($.0)}
 
-seq={
-  [
-    pos=[from]
-    kv=[to=null step=1]
-  ]=$
-  i=from
+from={
+  [pos=[i] kv=[to=null step=1]]=$
+
   cmp=if(to|eq(null) then={
     {true}
   } elif=[{step|gte(0)} {
@@ -1470,6 +1467,7 @@ seq={
   }] else={
     gte
   })
+
   while({i|cmp(to)} do={
     msg=pause(i)
     msg.restart|ne(null)|then({
@@ -1481,7 +1479,7 @@ seq={
   return(i)
 }
 
-a=seq(1 to=3)
+a=from(1 to=3)
 print(a)
 # [$next={}]
 
@@ -1526,13 +1524,13 @@ each={
   # (main `each` code here)
 }
 
-seq(1 to=100)|each({print($.val)})
+from(1 to=100)|each({print($.val)})
 # 1
 # 2
 # ...
 # 100
 
-seq(0 step=-2)|each({print($.val)})
+from(0 step=-2)|each({print($.val)})
 # 0
 # -2
 # -4
@@ -1597,7 +1595,7 @@ mainLoop={
   })
 }
 
-task=Task(seq 1 to=3)
+task=Task(from 1 to=3)
 
 print(task)
 # [
@@ -1697,8 +1695,8 @@ await={
   )
 }
 
-one=Task(seq 1 to=10)
-another=Task(seq 2 to=20)
+one=Task(from 1 to=10)
+another=Task(from 2 to=20)
 await(one another)
 
 print(one.done another.done)
@@ -1707,11 +1705,11 @@ print(one.done another.done)
 print(one.result another.result)
 # 11 21
 
-result=await(Task(seq 3 to=30))
+result=await(Task(from 3 to=30))
 print(result)
 # 31
 
-bad=Task(seq 4 to=40 step={})
+bad=Task(from 4 to=40 step={})
 print(bad)
 # [
 #   done=false
@@ -1722,7 +1720,7 @@ print(bad)
 # ]
 
 await(bad)
-# (trace to seq)
+# (trace to `from()`)
 #   up(i=i|sum(step))
 # Error: cannot sum(4 {$key="step"})
 ```
@@ -1730,14 +1728,13 @@ await(bad)
 ### async
 
 ```
-async={
-  func=$.0
-  {Task(func $...)}
-}
+async={func=$.0 {
+  Task(func $...)
+}}
 
-aseq=async(seq)
+afrom=async(from)
 
-print(await(aseq(5 to=50)))
+print(await(afrom(5 to=50)))
 # 51
 
 afoo=async({
