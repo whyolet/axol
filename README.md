@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.16
+axol version 0.4.17
 
 # core
 
@@ -551,30 +551,6 @@ print(["a" b="c"].map({
 # AC
 ```
 
-### bool
-### math
-
-```
-[false null 0 "" [] {}]|each({
-  print(bool($.val) not($.val))
-})
-# false true
-# (6 times)
-
-print(bool("anything else"))
-# true
-
-[eq ne lt gt lte gte and or]|each({
-  print($.val(2 3) end=" ")
-})
-# false true true false true false 3 2
-
-[sum sub mul div mod pow]|each({
-  print($.val(3 2) end=" ")
-})
-# 5 1 6 1.5 1 9
-```
-
 ### throw
 ### catch
 ### trace
@@ -701,6 +677,102 @@ loop(here)|print
 ```
 
 See also: [loop](#loop)
+
+### bool
+
+```
+# Ideally, extendable:
+falses=[false null 0 "" [] {}]
+bool={not($.0|in(falses))}
+
+# ...but `in` calls `bool` for now,
+# so this code avoids eternal loop:
+bool={
+  [pos=[val]]=$
+  do={return(false from=bool)}
+  native.ifThen(val|eq(false) do)
+  native.ifThen(val|eq(null) do)
+  native.ifThen(val|eq(0) do)
+  native.ifThen(val|eq("") do)
+  native.ifThen(val|eq([]) do)
+  native.ifThen(val|eq({}) do)
+  true
+}
+
+print([]|bool)
+# false
+
+print([""]|bool)
+# true
+```
+
+### not
+
+```
+not={$.0|bool|eq(false)}
+
+print(not(true))
+# false
+
+print(not({}))
+# true
+```
+
+### eq
+### ne
+
+```
+eq={native.eq($...)}
+
+print("a"|eq("a"))
+# true
+
+print({}|eq({}))
+# true
+
+print({"a"}|eq({"a"}))
+# false
+# (non-empty functions are compared by their addresses as they may behave differently depending on `$outer` and `$caller`)
+
+f={"a"}
+print(f|eq(f))
+# true
+
+ne={not(eq($...))}
+
+print([]|ne({}))
+# true
+```
+
+### math
+
+```
+print(
+  2|lt(3)  # Less Than
+  2|lte(3)  # Less Than or Equal
+  3|gt(2)  # Greater Than
+  3|gte(2)  # Greater Than or Equal
+)
+# true
+# (4 times)
+
+print("a"|and("b"))
+# "b"
+
+print(""|and("b"))
+# ""
+
+print("a"|or("b"))
+# "a"
+
+print(""|or("b"))
+# "b"
+
+[sum sub mul div mod pow]|each({
+  print($.val(3 2) end=" ")
+})
+# 5 1 6 1.5 1 9
+```
 
 ## box functions
 
@@ -1535,9 +1607,6 @@ from(0 step=-2)|each({print($.val)})
 # -2
 # -4
 # (and so on until Ctrl+C)
-
-print(from("no" to="noooo" step="o")|map...)
-# no noo nooo noooo
 ```
 
 ### Task
