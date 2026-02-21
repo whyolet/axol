@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.15
+axol version 0.4.16
 
 # core
 
@@ -532,7 +532,7 @@ See also `each` definition in [pause](#pause).
 
 ```
 map={
-  [pos=[items do]]=$
+  [pos=[items do={$.val}]]=$
   results=[]
   $|each({
     results|add(do($...))
@@ -1535,6 +1535,9 @@ from(0 step=-2)|each({print($.val)})
 # -2
 # -4
 # (and so on until Ctrl+C)
+
+print(from("no" to="noooo" step="o")|map...)
+# no noo nooo noooo
 ```
 
 ### Task
