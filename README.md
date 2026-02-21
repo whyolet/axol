@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.13
+axol version 0.4.14
 
 # core
 
@@ -298,7 +298,7 @@ true|then({
 # [a="c"]
 ```
 
-See also: [up](#up).
+See also: [up](#up), [throw](#throw).
 
 # stdlib
 
@@ -585,9 +585,13 @@ throw={
   err.$trace|else({
     err.$trace=native.getTraceId()
   })
-  nearestCatch=native.getCatch()
-  nearestCatch|then({
-    return(err from=nearestCatch)
+
+  caller=$caller
+  while({caller} do={
+    caller.$isCatching|then({
+      return(err from=catch)
+    })
+    up(caller=caller.$caller)
   })
 
   print(err|trace("") file=os.stderr)
@@ -602,7 +606,7 @@ throw={
 
 catch={
   do=$.0
-  native.setCatch()
+  $isCatching=true
   do()
   return(null)
 }
@@ -825,18 +829,18 @@ up={
   callerOfUp=$caller
   items|each({
     [kv=[key val]]=$
-    current=[box=callerOfUp]
+    cur=[box=callerOfUp]
     while({not(
-      key|in(current.box|keys)
+      key|in(cur.box|keys)
     )} do={
-      outerBox=current.box.$outer
+      outerBox=cur.box.$outer
       outerBox.else({
         throw(KeyError(key))
       })
-      current.box=outerBox
+      cur.box=outerBox
     })
     plan|add([
-      box=current.box
+      box=cur.box
       key=key
       val=val
     ])
