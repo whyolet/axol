@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.17
+axol version 0.4.18
 
 # core
 
@@ -125,15 +125,15 @@ print(f())
 # b
 
 print(f)
-# {$key="f"}
+# {"f"}
 
 print([f=f])
 # [f={}]
 ```
 
-Function [$key](#key) is printed instead of a usually long function code.
+Function [$outer.key](#outer) is printed instead of a usually long function code.
 
-`f={$key="f"}` is printed as `f={}` for brevity.
+`f={"f"}` is printed as `f={}` for brevity.
 
 ### $
 
@@ -176,34 +176,6 @@ While valid, one-liner functions are less readable:
 ```
 {val=$.0 "{val}{val}"}("no")
 # nono
-```
-
-### $key
-
-`$key` is the first key the function was set to.
-
-```
-f={print($key)}
-f()
-# f
-
-g={
-  [pos=[h]]=$
-  h()
-}
-
-g(f)
-# f
-
-g({
-  print($key)
-})
-# h
-
-{
-  print($key)
-}()
-# null
 ```
 
 ### $me
@@ -251,51 +223,60 @@ See also: [oop](#oop).
 
 ### $here
 
-`$here` is a box with keys and values set in the function.
+`$here.box` is a box with keys and values set in the function.
 
 ```
 a="b"
 
 f={
   a="c"
-  print($here)
+  print($here.box)
 }
 
 f()
 # [a="c"]
 
-print($here)
+print($here.box)
 # [a="b" f={}]
 ```
 
 ### $outer
 
-`$outer` is a [$here](#here) box of a function that created the current function.
+`$outer.box` is a [$here.box](#here) of a function that created the current function.
+
+`$outer.key` is the first key the function was set to in the `$outer.box`.
 
 ```
 a="b"
 f={print($outer)}
 true|then({
   a="c"
-  f()
+  r=f()
 })
-# [a="b" f={}]
+# [box=[a="b" f={}] key="f"]
+
+{print($outer)}()
+# [box=[a="b" f={}] key=null]
 ```
 
 See also: [up](#up).
 
 ### $caller
 
-`$caller` is a box the function was called from.
+`$caller.box` is a box the function was called from.
+
+`$caller.key` is the key the function result will be set to in the `$caller.box`.
 
 ```
 a="b"
 f={print($caller)}
 true|then({
   a="c"
+  r=f()
   f()
 })
-# [a="c"]
+# [box=[a="c"] key="r"]
+# [box=[a="c"] key=null]
 ```
 
 See also: [up](#up), [throw](#throw).
@@ -564,10 +545,10 @@ throw={
 
   caller=$caller
   while({caller} do={
-    caller.$isCatching|then({
+    caller.box.$isCatching|then({
       return(err from=catch)
     })
-    up(caller=caller.$caller)
+    up(caller=caller.box.$caller)
   })
 
   print(err|trace("") file=os.stderr)
@@ -901,11 +882,11 @@ up={
   callerOfUp=$caller
   items|each({
     [kv=[key val]]=$
-    cur=[box=callerOfUp]
+    cur=[box=callerOfUp.box]
     while({not(
       key|in(cur.box|keys)
     )} do={
-      outerBox=cur.box.$outer
+      outerBox=cur.box.$outer.box
       outerBox.else({
         throw(KeyError(key))
       })
@@ -1346,7 +1327,7 @@ type={
   $type=[
     of...
     $of=of
-    $key=$key
+    $typeKey=$outer.key
   ]
   $type.$call={
     parent=of($...)
@@ -1378,7 +1359,7 @@ Animal.getTaxonomy={
   while({cur.type|and(
     cur.type|ne(rootType)
   )} do={
-    taxonomy|add(cur.type.$key)
+    taxonomy|add(cur.type.$typeKey)
     cur.type=cur.type.$of
   })
   taxonomy
@@ -1409,12 +1390,12 @@ print(bob)
 #   isAwake=true
 #   mood=2
 #   talk={}
-#   $type={$key="Cat"}
+#   $type={"Cat"}
 #   $parent=[
 #     getTaxonomy={}
 #     isAwake=true
 #     talk={}
-#     $type={$key="Animal"}
+#     $type={"Animal"}
 #     $parent=[]
 #   ]
 # ]
@@ -1506,7 +1487,7 @@ KeyError=type(of=Error {
 
 err=KeyError("foo")
 
-print(err.$key err.key)
+print(err.$typeKey err.key)
 # KeyError foo
 
 throw(err)
@@ -1518,6 +1499,42 @@ if(err|is(KeyError) {
   print("it is, but matched above")
 }] else={err|throw})
 # ok
+```
+
+### Enum
+### Bool
+### Null
+
+```
+Enum=type({[
+  key=$caller.key
+  $str={$me.key}
+]})
+
+Bool=type(of=Enum)
+true=Bool()
+false=Bool()
+
+Null=type(of=Enum)
+null=Null()
+
+print(true)
+# true
+
+print(true.$str)
+# {"$str"}
+
+print(true.$type)
+# {"Bool"}
+
+print(true|is(Bool))
+# true
+
+print(null|is(Bool))
+# false
+
+print(null|is(Nool))
+# true
 ```
 
 ## concurrency
@@ -1674,7 +1691,7 @@ print(task)
 #   done=false
 #   result=[$next={}]
 #   err=null
-#   $type={$key="Task"}
+#   $type={"Task"}
 #   $parent=[]
 # ]
 
@@ -1689,7 +1706,7 @@ pause()
 ```
 print(task)
 # [done=true result=4 err=null
-# $type={$key="Task"} $parent=[]]
+# $type={"Task"} $parent=[]]
 
 f={
   print($.0)
@@ -1700,7 +1717,7 @@ instant=Task(f "ok")
 
 print(instant)
 # [done=true result=42 err=null
-# $type={$key="Task"} $parent=[]]
+# $type={"Task"} $parent=[]]
 ```
 
 ### await
@@ -1787,14 +1804,14 @@ print(bad)
 #   done=false
 #   result=[$next={}]
 #   err=null
-#   $type={$key="Task"}
+#   $type={"Task"}
 #   $parent=[]
 # ]
 
 await(bad)
 # (trace to `from()`)
 #   up(i=i|sum(step))
-# Error: cannot sum(4 {$key="step"})
+# Error: cannot sum(4 {"step"})
 ```
 
 ### async
