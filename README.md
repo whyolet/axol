@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
 
-axol version 0.4.18
+axol version 0.4.19
 
 # core
 
@@ -263,7 +263,7 @@ See also: [up](#up).
 
 ### $caller
 
-`$caller.box` is a box the function was called from.
+`$caller.box` is a [$here.box](#here) of a function that called the current function.
 
 `$caller.key` is the key the function result will be set to in the `$caller.box`.
 
@@ -279,7 +279,7 @@ true|then({
 # [box=[a="c"] key=null]
 ```
 
-See also: [up](#up), [throw](#throw).
+See also: [up](#up), [throw](#throw), [Enum](#Enum).
 
 # stdlib
 
@@ -1327,13 +1327,15 @@ type={
   $type=[
     of...
     $of=of
-    $typeKey=$outer.key
+    $typeKey=$caller.key
+    $str={"\{\"{$me.$typeKey}\"\}"}
   ]
   $type.$call={
     parent=of($...)
     onlyMe=make($...)
     me=[of...]
     me|del("$call")
+    me|del("$str")
     me|add([
       parent...
       onlyMe...
@@ -1381,6 +1383,9 @@ Cat=type(of=Animal {
     }
   ]
 })
+
+print(Cat)
+# {"Cat"}
 
 bob=Cat()
 
@@ -1533,7 +1538,29 @@ print(true|is(Bool))
 print(null|is(Bool))
 # false
 
-print(null|is(Nool))
+print(null|is(Null))
+# true
+```
+
+### Str
+### Num
+
+Strings and numbers are simple native values, associated natively with these types.
+
+```
+Str=type()
+Num=type()
+
+print("text".$type)
+# {"Str"}
+
+print("text".0)
+# t
+
+print("text".0.$type)
+# {"Str"}
+
+print(-3.14|is(Num))
 # true
 ```
 
