@@ -5,9 +5,9 @@
 * Axolotl is a cute amphibian which can [regrow](https://en.wikipedia.org/wiki/Axolotl#Regeneration) missing body parts.
 * Axol is a minimalist programming language simple to read, write, extend.
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
-* Core elements of axol: `"strings"`, `[boxes]`, and `{functions}`.
+* Core elements of axol: `"strings"`, numbers, `[boxes]`, and `{functions}`.
 
-axol version 0.4.19
+axol version 0.4.20
 
 # core
 
@@ -73,46 +73,53 @@ print(
 # q
 ```
 
+## number
+
+```
+print(-3.14)
+# -3.14
+```
+
 ## box
 
 ```
-b=["c" "d" key="val" m="n" o="p"]
+b=["c" "d" "e" f="g" h="i"]
 
 print(b)
-# ["c" "d" key="val" m="n" o="p"]
+# ["c" "d" "e" f="g" h="i"]
 
-print(b.0)
-# c
+print(b.0 b.1 b.2 b.f b.h)
+#     c   d   e   g   i
 
-print(b.key)
-# val
+[pos=[j k l] kv=[f h]]=b
+print(j k l f h)
+#     c d e g i
 
 [
-  pos=[q r="s" t="u"]
-  kv=[key m="v" w="x"]
-  rest=[y]
+  pos=[j k l u="v"]
+  kv=[f h="w" x="y"]
 ]=b
+print(j k l u f h x)
+#     c d e v g i y
 
-print(q r t)
-# c d u
+[pos=[j]]=b
+# Error: pos=[j] cannot unbox pos=["c" "d" "e"], try pos=[j vals...]
 
-print(key m w)
-# val n x
+[pos=[j m...]]=b
+# Error: kv=[] cannot unbox kv=[f="g" h="i"], try kv=[kvals...]
 
-print(y)
-# [o="p"]
+[pos=[j m...] kv=[n...]]=b
+print(j m n)
+# c ["d" "e"] [f="g" h="i"]
 
-print(["a" y...])
-# ["a" o="p"]
+print([j m... n...])
+# ["c" "d" "e" f="g" h="i"]
 
-print(["a" o="p" o="q"])
-# ["a" o="q"]
-
-[kv=[a b="c"]]=[]
-# Error: `a` is required
+print([o="p" o="q"])
+# [o="q"]
 ```
 
-See also: [box functions](#box-functions).
+See also: [box functions](#box-functions), [$call](#call), [$str](#str).
 
 ## function
 
@@ -197,12 +204,12 @@ a.f()
 c.f()
 # ["d" f={}]
 
-f2=a|get("f")
+f2=a|get("F"|lower)
 f2()
 # ["b" f={}]
 ```
 
-`$me` can be overridden, it is not kept in the `$` box:
+`$me` can be overridden, it's auto-deleted from the `$` box:
 
 ```
 f($me=c)
@@ -239,6 +246,8 @@ f()
 print($here.box)
 # [a="b" f={}]
 ```
+
+Special keys like `$here` itself are not printed to keep it clean, unlike `[a="b" f={} $here=[a="b" f={} $here=...]]`
 
 ### $outer
 
@@ -280,6 +289,38 @@ true|then({
 ```
 
 See also: [up](#up), [throw](#throw), [Enum](#Enum).
+
+### $call
+
+`$call` allows to call its [$outer.box](#outer) like a function.
+
+```
+a=["b" c="d" $call={
+  print($me.c)
+}]
+
+a()
+# d
+```
+
+### $str
+
+`$str` allows to convert its [$outer.box](#outer) to a string in a custom way.
+
+```
+b=[name="Bob" $str={
+  "{$me.name} in the box"
+}]
+
+print(b)
+# Bob in the box
+
+b.name="Joe"
+print("and {b} too")
+# and Joe in the box too
+```
+
+See also: [Error](#Error)
 
 # stdlib
 
@@ -407,9 +448,10 @@ See also: [or](#bool).
 
 ```
 case={
-  [kv=[else={}]]=$
-  items=$|pos
-  expected=items|del(0)
+  [
+    pos=[expected items...]
+    kv=[else={}]
+  ]=$
   while({items} do={
     [pos=[val action]]=items|del(0 len=2)
     val|eq(expected)|else(continue)
@@ -427,110 +469,6 @@ input("sure? (yes/no): ")|case(
 ```
 
 See also: [input](#input).
-
-### loop
-
-```
-loop={
-  do=$.0
-  native.repeat({
-    err=catch(do)
-    err|then({
-      [
-        pos=[head=null val=null]
-        kv=[from=do]
-      ]=err
-      from|eq(do)|else({err|throw})
-      case(head
-        break {return(val from=loop)}
-        continue {}
-        # `return` is handled natively by each `{}`, not just by `loop`
-        else={err|throw}
-      )
-    })
-  })
-  null
-}
-
-loop({
-  print("Press Ctrl+C to stop this")
-})
-```
-
-See also: [break](#break), [continue](#continue), [return](#return).
-
-### while
-
-```
-while={
-  [pos=[cond] kv=[do=pause]]=$
-  cond|is({})|else({
-    throw("""
-      replace while(condition)
-      with while({condition})
-      to check condition many times
-    """)
-  })
-  loop({
-    if(cond() then=do else=break)
-  })
-}
-
-i=4
-while({i} do={
-  i|print(end=" ")
-  up(i=i|sub(1))
-})
-# 4 3 2 1
-```
-
-### each
-
-```
-each={
-  [pos=[items do]]=$
-  loop({
-    key=null
-    [
-      pos=[found key val]
-    ]=native.getNextItem(items key)
-    found|else(break)
-    do(key=key val=val)
-  })
-}
-
-["a" "b" c="d"]|each({
-  print($.key $.val)
-})
-# 0 a
-# 1 b
-# c d
-```
-
-See also `each` definition in [pause](#pause).
-
-### map
-
-```
-map={
-  [pos=[items do={$.val}]]=$
-  results=[]
-  $|each({
-    results|add(do($...))
-  })
-  results
-}
-
-print("hey"|map({
-  "{$.key}={$.val}"
-}))
-# ["0=h" "1=e" "2=y"]
-
-print(["a" b="c"].map({
-  $.val|upper
-})|join("")
-# AC
-```
 
 ### throw
 ### catch
@@ -552,17 +490,16 @@ throw={
   })
 
   print(err|trace("") file=os.stderr)
-  [pos=[val=null] kv=[$trace] rest=[rest]]=err
-  msg=if(rest
-    then={[val rest...]}
-    else={val}
-  )
+  err|del("$trace")
+  msg=if(err|pos|len|eq(1)|and(
+    not(err|kv)
+  ) then={err.0} else={err})
   print("Error: {msg}" file=os.stderr)
   os.exit(1)
 }
 
 catch={
-  do=$.0
+  [pos=[do]]=$
   $isCatching=true
   do()
   return(null)
@@ -623,7 +560,7 @@ throw(err)
 #   e=catch({
 # /path/app.axol L44 C3
 #   throw("a" b="c")
-# Error: ["a" b="c" $trace=12345]
+# Error: ["a" b="c"]
 
 throw("one string only")
 # (trace)
@@ -634,30 +571,163 @@ throw("anything" else="here")
 # Error: ["anything" else="here"]
 ```
 
+### loop
+
+Result of a `do` iteration of a `loop` is ignored. Use `break(val)` to return a value from a loop.
+
+```
+loop={
+  [pos=[do]]=$
+  native.repeat({
+    err=catch(do)
+    err|then({
+      [
+        pos=[head=null vals...]
+        kv=[from=do kvals...]
+      ]=err
+      from|eq(do)|else({err|throw})
+      case(head
+        break {
+          return(vals.0 from=loop)
+        }
+        continue {}
+        # `return` is handled natively by each `{}`
+        else={err|throw}
+      )
+    })
+  })
+  null
+}
+
+loop({
+  print("Press Ctrl+C to stop this")
+})
+```
+
+See also: [break](#break), [continue](#continue), [return](#return).
+
 ### break
 ### continue
 ### return
 
 ```
-break={throw(break $...)}
-continue={throw(continue $...)}
-return={throw(return $...)}
-
-here={
-  line=input()
-  line|else(break)
-  line|case(
-    "skip" continue
-    "ret" {return("ok" from=here)}
-  )
-  print(line)
+break={
+  [pos=[val=null] kv=[from=null]]=$
+  from|then({
+    throw(break val from=from)
+  })
+  throw(break val)
 }
-loop(here)|print
-# (input "ret")
-# ok
+
+continue={
+  [kv=[from=null]]=$
+  from|then({
+    throw(continue from=from)
+  })
+  throw(continue)
+}
+
+return={
+  [pos=[val=null] kv=[from=null]]=$
+  native.return(val from)
+}
+
+test={
+  loop({
+    line=input()
+    line|else(break)
+    line|case(
+      "skip" continue
+      "ret" {
+        return("returned" from=test)
+      }
+    )
+    print("{line}?")
+  })
+  "broken"
+}
+print(test())
+# (try entering "skip", "ret", empty line, something else)
 ```
 
 See also: [loop](#loop)
+
+### while
+
+```
+while={
+  [pos=[cond] kv=[do]]=$
+  cond|is({})|else({
+    throw("""
+      replace while(condition)
+      with while({condition})
+      to check condition many times
+    """)
+  })
+  loop({
+    if(cond() then=do else=break)
+  })
+}
+
+i=4
+while({i} do={
+  i|print(end=" ")
+  up(i=i|sub(1))
+})
+# 4 3 2 1
+```
+
+### each
+
+```
+each={
+  [pos=[items do]]=$
+  # (more code from `pause` later)
+  loop({
+    key=null
+    [
+      pos=[found key val]
+    ]=native.getNextItem(items key)
+    found|else(break)
+    do(key=key val=val)
+  })
+}
+
+["a" "b" c="d"]|each({
+  print($.key $.val)
+})
+# 0 a
+# 1 b
+# c d
+```
+
+See also `each` definition in [pause](#pause).
+
+### map
+
+```
+map={
+  [pos=[items do={$.val}]]=$
+  results=[]
+  $|each({
+    results|add(do($...))
+  })
+  results
+}
+
+print("hey"|map)
+# ["h" "e" "y"]
+
+print("hey"|map({
+  "{$.key}={$.val}"
+}))
+# ["0=h" "1=e" "2=y"]
+
+print(["a" b="c"].map({
+  $.val|upper
+})|join("")
+# AC
+```
 
 ### bool
 
@@ -690,7 +760,10 @@ print([""]|bool)
 ### not
 
 ```
-not={$.0|bool|eq(false)}
+not={
+  [pos=[val]]=$
+  val|bool|eq(false)
+}
 
 print(not(true))
 # false
@@ -706,6 +779,9 @@ print(not({}))
 eq={native.eq($...)}
 
 print("a"|eq("a"))
+# true
+
+print("a"|eq("a" "A"|lower))
 # true
 
 print({}|eq({}))
@@ -764,19 +840,10 @@ See also: [box](#box), [each](#each), [map](#map).
 ```
 add={
   [
-    pos=[box]
+    pos=[box vals...]
     kv=[at=-1 flat=false]
-    rest=[rest]
   ]=$
-  vals=rest|pos
-  rest|kv|then({
-    throw("box|add(key=val) should be either:
-      box.key=val
-      box|up(key=val)
-      box|add([key=val] flat=true)
-    ")
-  })
-  native.add(box at vals flat)
+  native.add(box vals at flat)
 }
 
 b=["a" c="d"]
@@ -827,8 +894,11 @@ print(a|get("E"|lower))
 print(a|get("g"))
 # Error: `g` is not found
 
-print(a|get("g" default="h"))
-# h
+print(a|get("g" default=null))
+# null
+
+print(a.g)
+# null
 ```
 
 ### set
@@ -838,36 +908,43 @@ set={
   [
     pos=[box key val]
     kv=[len=null]
-    rest=[rest]
   ]=$
-  rest|then({
-    throw("add(vals...), set(key val)")
-  })
-  native.set(box key len val)
+  native.set(box key val len)
 }
 
 b=["a" "c" d="e"]
 
-b|set("d" "f")
+b|set("d" "x")
 print(b)
-# ["a" "c" d="f"]
+# ["a" "c" d="x"]
 
 b|set(0 len=2 ["g"])
 print(b)
-# ["g" d="f"]
+# ["g" d="x"]
+
+f={print("complex")}
+b|set(["key" j=f] "val")
+b|get(["key" j=f])|print
+# val
+
+print(b)
+# [
+#   "g"
+#   d="x"
+#   ["key" j={"f"}]="val"
+# ]
 ```
 
 ### up
 
 ```
 up={
-  [pos=[box=null]]=$
-  items=$|kv
+  [pos=[box=null] kv=[items...]]=$
 
   box|then({
+    boxKeys=box|keys
     items|each({
-      [kv=[key]]=$
-      key|in(box|keys)|else({
+      $.key|in(boxKeys)|else({
         throw(KeyError(key))
       })
     })
@@ -962,14 +1039,41 @@ print(a)
 print(a|del("e"))
 # Error: `e` is not found
 
-print(a|del("e" default="g"))
-# g
+print(a|del("e" default=null))
+# null
+```
+
+### clear
+
+```
+clear={
+  [pos=[box]]=$
+  box|del(0 len=box|len)
+  box|each({
+    box|del($.key)
+  })
+  null
+}
+
+a=["b" c="d"]
+a2=a
+
+a|clear
+
+print(a)
+# []
+
+print(a|eq(a2))
+# true
 ```
 
 ### keys
 
 ```
-keys={$.0|map({$.key})}
+keys={
+  [pos=[box]]=$
+  box|map({$.key})
+}
 
 print(["a" b="c"]|keys)
 # [0 "b"]
@@ -978,7 +1082,10 @@ print(["a" b="c"]|keys)
 ### vals
 
 ```
-vals={$.0|map({$.val})}
+vals={
+  [pos=[box]]=$
+  box|map({$.val})
+}
 
 print(["a" b="c"]|vals)
 # ["a" "c"]
@@ -989,9 +1096,11 @@ print(["a" b="c"]|vals)
 ### len
 
 ```
-pos={native.pos($.0)}
-kv={native.kv($.0)}
-len={native.len($.0)}
+pos={
+  [pos=[box]]=$
+  native.pos(box)
+}
+# (`kv` and `len` are native too)
 
 h=["a" "b" "c" d="e" f="g"]
 
@@ -1030,47 +1139,30 @@ print(e|find("a"))  # 0
 print(e|find("f"))  # null
 print(e|find("d"))  # "c"
 
-in={$.0|find($.1)|ne(null)}
+in={
+  [pos=[where what]]=$
+  where|find(what)|ne(null)
+}
+
 print("a"|in(e))  # true
 print("c"|in(e))  # false
 print("c"|in(e|keys))  # true
 ```
 
-### $call
-
-```
-a=["b" c="d" $call={
-  print($me.c)
-}]
-
-a()
-# d
-```
-
-### $str
-
-```
-b=[name="Bob" $str={
-  "{$me.name} in the box"
-}]
-
-print(b)
-# Bob in the box
-
-b.name="Joe"
-print("and {b} too")
-# and Joe in the box too
-```
-
-See also: [Error](#Error)
-
 ## files
 
 ### import
 
+Any `import` returns a cached box with keys and vals set in the given axol file by now:
+* Real file name (with full path, without links) is used as a key in the import cache.
+* Import cache works like in Python, allowing mutual imports to succeed where possible.
+
 Relative:
 ```
-[kv=[foo bar]]=import("./baz.axol")
+[kv=[
+  foo
+  bar
+_...]]=import("./baz.axol")
 
 foo(bar)
 ```
@@ -1106,11 +1198,13 @@ print(getNow())
 
 ```
 print={
-  [kv=[file=os.stdout sep=" " end="
-  "]]=$
-  file.write(
-    $|pos|join(sep)|sum(end)
-  )
+  [pos=[vals...] kv=[
+    file=os.stdout
+    sep=" "
+    end="
+    "
+  ]]=$
+  file.write(vals|join(sep)|sum(end))
 }
 
 print("a" "b")
@@ -1119,20 +1213,23 @@ print("a" "b")
 print("a" "b" sep="" end="")
 print("c")
 # abc
+
+print("failed" file=os.stderr)
 ```
 
 ### input
 
 ```
 input={
-  [kv=[
-    end=""
+  [pos=[prompt=null] kv=[
     file=os.stdin
-  ] rest=[prompt]]=$
-  rest|then({
-    print(prompt... end=end)
+    end="
+    "
+  ]]=$
+  prompt|then({
+    print(prompt end="")
   })
-  file.readLine()
+  file.readUntil(end)
 }
 
 answer=input("question: ")
@@ -1183,7 +1280,7 @@ log.names|each({
 log.level=log.levels.info
 log.print=print
 log.do={
-  [pos=[level] rest=[vals]]=$
+  [pos=[level vals...]]=$
   level|lt(log.level)|then(return)
   letter=log.letters|get(level)
   log.print("{getNow()} {letter} {vals}")
@@ -1270,7 +1367,11 @@ File=type({
 })
 
 with={
-  [kv=[do] rest=[items]]=$
+  [
+    pos=[vals...]
+    kv=[kvals... do]
+  ]=$
+  items=[vals... kvals...]
   result=null
   err=catch({
     up(result=do(items...))
@@ -1544,12 +1645,16 @@ print(null|is(Null))
 
 ### Str
 ### Num
+### Box
+### Func
 
-Strings and numbers are simple native values, associated natively with these types.
+Strings, numbers, boxes, and functions are core values, associated natively with these types.
 
 ```
 Str=type()
 Num=type()
+Box=type()
+Func=type()
 
 print("text".$type)
 # {"Str"}
@@ -1562,6 +1667,9 @@ print("text".0.$type)
 
 print(-3.14|is(Num))
 # true
+
+print([]|is(Box) {}|is(Func))
+# true true
 ```
 
 ## concurrency
@@ -1571,7 +1679,10 @@ print(-3.14|is(Num))
 ### $next
 
 ```
-pause={native.pause($.0)}
+pause={
+  [pos=[val=null]]=$
+  native.pause(val)
+}
 
 from={
   [pos=[i] kv=[to=null step=1]]=$
@@ -1659,7 +1770,11 @@ from(0 step=-2)|each({print($.val)})
 tasks=[]
 
 Task=type({
-  [pos=[func] rest=[args]]=$
+  [
+    pos=[func vals...]
+    kv=[kvals...]
+  ]=$
+  args=[vals... kvals...]
   task=[result=null]
   task.err=catch({
     task.result=func(args...)
@@ -1676,8 +1791,7 @@ See [mainLoop](#mainLoop).
 
 ### mainLoop
 
-This is the main loop which executes all tasks,
-including the `mainTask` auto-created from the main code of the app.
+This is the main loop which executes all tasks, including the `mainTask` auto-created from the main code of the app.
 
 ```
 mainLoop={
@@ -1751,18 +1865,22 @@ print(instant)
 
 ```
 await={
-  [kv=[done=null err=1 ok=null]]=$
+  [
+    pos=[tasks...]
+    kv=[done=null err=1 ok=null]
+  ]=$
   need=[done=done err=err ok=ok]
   have=[done=0 err=0 ok=0]
 
-  tasks=[]
-  $|pos|each({
+  tasks|each({
     task=$.val
-    task|is(Task)|else({
-      throw("not Task: {task}")
-    })
-    tasks|add(task)
+    task|is(Task)|then(continue)
+    throw("not Task: {task}")
   }]
+
+  singleTask=tasks|len|eq(1)|te(
+    tasks.0 null
+  )
 
   do={
     tasks|each({
@@ -1805,8 +1923,8 @@ await={
   }
   while({tasks} do=do)
 
-  if($|len|eq(1)
-    then={$.0.result}
+  if(singleTask
+    then={singleTask.result}
     else={null}
   )
 }
@@ -1844,9 +1962,10 @@ await(bad)
 ### async
 
 ```
-async={func=$.0 {
-  Task(func $...)
-}}
+async={
+  [pos=[func]]=$
+  {Task(func $...)}
+}
 
 afrom=async(from)
 
