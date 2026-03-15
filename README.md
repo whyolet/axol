@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, numbers, `[boxes]`, and `{functions}`.
 
-axol version 0.4.22
+axol version 0.4.23
 
 # core
 
@@ -707,10 +707,13 @@ See also `each` definition in [pause](#pause).
 
 ```
 map={
-  [pos=[items do={$.val}]]=$
+  [
+    pos=[items do={$.val}]
+    kv=[flat=false]
+  ]=$
   results=[]
   $|each({
-    results|add(do($...))
+    results|add(do($...) flat=flat)
   })
   results
 }
@@ -727,6 +730,11 @@ print(["a" b="c"].map({
   $.val|upper
 })|join("")
 # AC
+
+print("abc"|map({
+  [$.key $.val]
+} flat=true))
+# [0 "a" 1 "b" 2 "c"]
 ```
 
 ### bool
@@ -1821,6 +1829,18 @@ Selector=type({[
       data
     )
   }
+  get={
+    [pos=[handle]]=$
+    selectorKey=null
+    err=catch({
+      up(selectorKey=$me.selector.get_key(handle))
+    })
+    if(err|and(err.0|eq(py.KeyError))
+      then={null}
+      elif=[{err} {err|throw}]
+      else={selectorKey.data}
+    )
+  }
   del={
     [pos=[handle]]=$
     $me.selector.unregister(handle)
@@ -1828,10 +1848,7 @@ Selector=type({[
   select={
     [kv=[seconds=null]]=$
     ready=$me.selector.select(seconds)
-    ready|map({
-      [pos=[selectorKey _]]=$.val
-      [selectorKey.data...]
-    })
+    ready|map({$.val.0.data})
   }
 ]})
 
@@ -1876,7 +1893,7 @@ sub.wait()
 ### Task
 
 ```
-tasks=[]
+allTasks=[]
 taskSelector=Selector()
 
 Task=type({
@@ -1907,7 +1924,7 @@ Task=type({
     updateTaskOnMsg(task msg)
   })
   task.done|else({
-    tasks|add(task)
+    allTasks|add(task)
   })
   task
 })
@@ -1916,14 +1933,28 @@ updateTaskOnMsg={
   [pos=[task msg]]=$
   [kv=[handles=[] seconds=null]]=msg
   task.handles|each({
-    taskSelector.del($.val)
+    handle=$.val
+    handle|in(handles)|then(continue)
+    tasks=taskSelector.get(handle)
+    taskSelector.del(handle)
+    tasks|else(continue)
+    tasks|len|lt(2)|then(continue)
+    tasks|del(tasks|find(task))
+    taskSelector.add(handle tasks)
+  })
+  handles|each({
+    handle=$.val
+    handle|in(task.handles)|then(continue)
+    tasks=taskSelector.get(handle)
+    tasks|then({
+      tasks.add(task)
+      taskSelector.del(handle)
+      taskSelector.add(handle tasks)
+      continue()
+    })
+    taskSelector.add(handle [task])
   })
   task.handles=handles
-  task.handles|each({
-    handle=$.val
-    taskSelector.del(handle)
-    taskSelector.add(handle task)
-  })
   task.wakeAt=if(seconds|eq(null)
     then={null}
     else={time.time()|sum(seconds)}
@@ -1939,45 +1970,55 @@ This is the main loop which executes all tasks, including the `mainTask` auto-cr
 
 ```
 mainLoop={
-  while({tasks} do={
-    now=time.time()
-    minTask=tasks|min(key={
-      $.val.wakeAt|or(infinity)
+  while({allTasks} do={
+    theMin=getMinTaskSeconds(allTasks)
+    taskSelector.select(
+      seconds=theMin.seconds
+    )|or([[theMin.task]])|each({
+      $.val|each({
+        task=$.val
+        msg=null
+        err=catch({
+          up(msg=task.result.$next())
+        })
+        err|else({
+          updateTaskOnMsg(task msg)
+          continue()
+        })
+        if(err.0|eq(pause)
+          then={
+            task.result=err.result
+          }
+          else={
+            task.result=null
+            task.err=err
+          }
+        )
+        task.done=true
+        updateTaskOnMsg(task [
+          handles=[]
+          seconds=null
+        ])
+        allTasks|del(
+          allTasks|find(task)
+        )
+      })
     })
-    seconds=if(minTask.wakeAt
-      then={max(0
-        minTask.wakeAt|sub(now)
-      )}
-      else={null}
-    )
-    task=taskSelector.select(
-      seconds=seconds
-    )|or(minTask)
-    msg=null
-    err=catch({
-      up(msg=task.result.$next())
-    })
-    err|else({
-      updateTaskOnMsg(task msg)
-      continue()
-    })
-    if(err.0|eq(pause)
-      then={
-        task.result=err.result
-      }
-      else={
-        task.result=null
-        task.err=err
-      }
-    )
-    task.done=true
-    task.handles|each({
-      taskSelector.del($.val)
-    })
-    task.handles=[]
-    task.wakeAt=null
-    tasks|del(tasks|find(task))
   })
+}
+
+getMinTaskSeconds={
+  [pos=[tasks]]=$
+  task=tasks|min(key={
+    $.val.wakeAt|or(infinity)
+  })
+  seconds=if(task.wakeAt
+    then={max(0
+      task.wakeAt|sub(time.time())
+    )}
+    else={null}
+  )
+  [task=task seconds=seconds]
 }
 
 sleep={
@@ -1998,7 +2039,7 @@ print(task)
 #   done=false
 #   err=null
 #   result=[$next={}]
-#   wakeAt=1234567890  # now + 5s
+#   wakeAt=1234567.89  # now + 5s
 #   handles=[]
 #   $type={"Task"}
 #   $parent=[]
@@ -2076,10 +2117,14 @@ await={
         continue()
       })
     })
-    # TODO: await for specific tasks
-    # efficiently, without waking
-    # the `mainLoop` all the time.
-    pause(seconds=0)
+    pause(
+      handles=tasks|map({
+        $.val.handles
+      } flat=true)
+      seconds=getMinTaskSeconds(
+        tasks
+      ).seconds
+    )
   }
   while({tasks} do=do)
 
