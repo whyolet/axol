@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, numbers, `[boxes]`, and `{functions}`.
 
-axol version 0.4.20
+axol version 0.4.21
 
 # core
 
@@ -829,6 +829,37 @@ print(""|or("b"))
   print($.val(3 2) end=" ")
 })
 # 5 1 6 1.5 1 9
+
+min={
+  [pos=[items] kv=[key={$.val}]]=$
+  minItem=null
+  minKey=null
+  items|each({
+    curItem=$.val
+    curKey=key(curItem)
+    minKey|eq(null)|or(
+      minKey|gt(curKey)
+    )|then({up(
+      minItem=curItem
+      minKey=curKey
+    )})
+  })
+  minItem
+}
+
+max={
+  # Similar to `min`.
+}
+
+a=[3 1 4]
+
+a|min|print
+# 1
+
+a|max(key={
+  0|sub($.val)
+})|print
+# 1
 ```
 
 ## box functions
@@ -1678,10 +1709,19 @@ print([]|is(Box) {}|is(Func))
 ### from
 ### $next
 
+The `pause` pauses a function and sends a message to the function's caller:
+* In caller: `result=f()`
+* In function: `pause(msg1)`
+* In caller: `msg1=result.$next()`
+
+The `$next` unpauses the function and sends another message to it:
+* In caller: `result.$next(msg2)`
+* In function: `msg2=pause()`
+
 ```
 pause={
-  [pos=[val=null]]=$
-  native.pause(val)
+  [pos=[msg=null]]=$
+  native.pause(msg)
 }
 
 from={
@@ -1764,10 +1804,80 @@ from(0 step=-2)|each({print($.val)})
 # (and so on until Ctrl+C)
 ```
 
+### Selector
+
+```
+selectors=py.__import__("selectors")
+# https://docs.python.org/3/library/selectors.html
+
+Selector=type({[
+  selector=selectors.DefaultSelector()
+  close={$me.selector.close()}
+  $without={$me.close()}
+  add={
+    [pos=[handle] kv=[data...]]=$
+    $me.selector.register(handle
+      3  # EVENT_READ | EVENT_WRITE
+      data
+    )
+  }
+  del={
+    [pos=[handle]]=$
+    $me.selector.unregister(handle)
+  }
+  select={
+    [kv=[seconds=null]]=$
+    ready=$me.selector.select(seconds)
+    ready|map({
+      [pos=[selectorKey _]]=$.val
+      [selectorKey.data...]
+    })
+  }
+]})
+
+subprocess=py.__import__("subprocess")
+sub = subprocess.Popen(
+  ["bash" "-c" "for i in $(seq 5); do echo out $i && echo err $i >&2; done"]
+  stdout=subprocess.PIPE
+  stderr=subprocess.PIPE
+  text=true
+)
+
+with(selector=Selector() do={
+  [kv=[selector]]=$
+  inputs=[sub.stdout sub.stderr]
+  selector.add(sub.stdout.handle
+    input=sub.stdout
+    output=os.stdout
+  )
+  selector.add(sub.stderr.handle
+    input=sub.stderr
+    output=os.stderr
+  )
+  while({inputs} do={
+    selector.select()|each({
+      selected=$.val
+      line=selected.input.readline()
+      line|else({
+        inputs|del(
+          inputs|find(selected.input)
+        )
+        continue()
+      })
+      selected.output.write(line)
+      selected.output.flush()
+    })
+  })
+})
+
+sub.wait()
+```
+
 ### Task
 
 ```
 tasks=[]
+taskSelector=Selector()
 
 Task=type({
   [
@@ -1775,19 +1885,53 @@ Task=type({
     kv=[kvals...]
   ]=$
   args=[vals... kvals...]
-  task=[result=null]
+  task=[
+    done=false
+    err=null
+    result=null
+    wakeAt=null
+    handles=[]
+  ]
   task.err=catch({
     task.result=func(args...)
   })
   task.done=bool(task.err)|or(not(
     task.result.$next
   ))
-  task.done|else({tasks|add(task)})
+  msg=if(task.done
+    then={null}
+    else={task.result.$next()}
+    # First `$next()` never fails.
+  )
+  msg|then({
+    updateTaskOnMsg(task msg)
+  })
+  task.done|else({
+    tasks|add(task)
+  })
   task
 })
+
+updateTaskOnMsg={
+  [pos=[task msg]]=$
+  [kv=[handles=[] seconds=null]]=msg
+  task.handles|each({
+    taskSelector.del($.val)
+  })
+  task.handles=handles
+  task.handles|each({
+    handle=$.val
+    taskSelector.del(handle)
+    taskSelector.add(handle task)
+  })
+  task.wakeAt=if(seconds|eq(null)
+    then={null}
+    else={time.time()|sum(seconds)}
+  )
+}
 ```
 
-See [mainLoop](#mainLoop).
+See example in the [mainLoop](#mainLoop).
 
 ### mainLoop
 
@@ -1796,69 +1940,82 @@ This is the main loop which executes all tasks, including the `mainTask` auto-cr
 ```
 mainLoop={
   while({tasks} do={
-    tasks|each({
-      key=$.key
-      task=$.val
-      task.done|then({
-        tasks|del(key)
-        continue()
-      })
-      err=catch({
-        task.result.$next()
-      })
-      err|else(continue)
-      if(err.0|eq(pause)
-        then={
-          task.result=err.result
-          if(task.result.$next
-            then=continue
-          )
-        }
-        else={
-          task.result=null
-          task.err=err
-        }
-      )
-      task.done=true
-      tasks|del(key)
+    now=time.time()
+    minTask=tasks|min(key={
+      $.val.wakeAt|or(infinity)
     })
+    seconds=if(minTask.wakeAt
+      then={max(0
+        minTask.wakeAt|sub(now)
+      )}
+      else={null}
+    )
+    task=taskSelector.select(
+      seconds=seconds
+    )|or(minTask)
+    msg=null
+    err=catch({
+      up(msg=task.result.$next())
+    })
+    err|else({
+      updateTaskOnMsg(task msg)
+      continue()
+    })
+    if(err.0|eq(pause)
+      then={
+        task.result=err.result
+      }
+      else={
+        task.result=null
+        task.err=err
+      }
+    )
+    task.done=true
+    task.handles|each({
+      taskSelector.del($.val)
+    })
+    task.handles=[]
+    task.wakeAt=null
+    tasks|del(tasks|find(task))
   })
 }
 
-task=Task(from 1 to=3)
+sleep={
+  [pos=[seconds=infinity]]=$
+  pause(seconds=seconds)
+}
+
+foo={
+  [pos=[val]]=$
+  sleep(5)
+  val
+}
+
+task=Task(foo "bar")
 
 print(task)
 # [
 #   done=false
-#   result=[$next={}]
 #   err=null
+#   result=[$next={}]
+#   wakeAt=1234567890  # now + 5s
+#   handles=[]
 #   $type={"Task"}
 #   $parent=[]
 # ]
 
-pause()
-```
+pause(seconds=7)
 
-* The `mainTask.result.$next()` returns in the `mainLoop`.
-* The `mainLoop` checks other tasks,
-* and then calls `mainTask.result.$next()` again,
-* so this `pause()` returns here in the `mainTask`.
-
-```
 print(task)
-# [done=true result=4 err=null
-# $type={"Task"} $parent=[]]
-
-f={
-  print($.0)
-  42
-}
-instant=Task(f "ok")
-# ok
-
-print(instant)
-# [done=true result=42 err=null
-# $type={"Task"} $parent=[]]
+# [
+#   done=true
+#   err=null
+#   result="bar"
+#   wakeAt=null
+#   handles=[]
+#   $type={"Task"}
+#   $parent=[]
+# ]
 ```
 
 ### await
@@ -1918,8 +2075,11 @@ await={
         tasks|del(key)
         continue()
       })
-      pause()  # let mainLoop work
     })
+    # TODO: await for specific tasks
+    # efficiently, without waking
+    # the `mainLoop` all the time.
+    pause(seconds=0)
   }
   while({tasks} do=do)
 
@@ -1929,30 +2089,19 @@ await={
   )
 }
 
-one=Task(from 1 to=10)
-another=Task(from 2 to=20)
+one=Task(sleep 3)
+another=Task(sleep 4)
 await(one another)
+# (returns in 4 seconds)
 
 print(one.done another.done)
 # true true
 
-print(one.result another.result)
-# 11 21
-
-result=await(Task(from 3 to=30))
+result=await(Task(foo "bar"))
 print(result)
-# 31
+# bar
 
 bad=Task(from 4 to=40 step={})
-print(bad)
-# [
-#   done=false
-#   result=[$next={}]
-#   err=null
-#   $type={"Task"}
-#   $parent=[]
-# ]
-
 await(bad)
 # (trace to `from()`)
 #   up(i=i|sum(step))
@@ -1964,15 +2113,18 @@ await(bad)
 ```
 async={
   [pos=[func]]=$
-  {Task(func $...)}
+  {
+    Task(func $...)
+  }
 }
 
-afrom=async(from)
-
-print(await(afrom(5 to=50)))
-# 51
-
 afoo=async({
-  # foo
+  [pos=[val]]=$
+  sleep(5)
+  val
 })
+
+result=await(afoo("bar"))
+print(result)
+# bar
 ```
