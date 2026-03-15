@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, numbers, `[boxes]`, and `{functions}`.
 
-axol version 0.4.23
+axol version 0.4.24
 
 # core
 
@@ -1935,24 +1935,22 @@ updateTaskOnMsg={
   task.handles|each({
     handle=$.val
     handle|in(handles)|then(continue)
-    tasks=taskSelector.get(handle)
-    taskSelector.del(handle)
-    tasks|else(continue)
-    tasks|len|lt(2)|then(continue)
+    [kv=[tasks]]=taskSelector.get(handle)
     tasks|del(tasks|find(task))
-    taskSelector.add(handle tasks)
+    tasks|then(continue)
+    taskSelector.del(handle)
   })
   handles|each({
     handle=$.val
     handle|in(task.handles)|then(continue)
-    tasks=taskSelector.get(handle)
+    [kv=[tasks]]=taskSelector.get(handle)
     tasks|then({
-      tasks.add(task)
-      taskSelector.del(handle)
-      taskSelector.add(handle tasks)
+      tasks|add(task)
       continue()
     })
-    taskSelector.add(handle [task])
+    taskSelector.add(handle
+      tasks=[task]
+    )
   })
   task.handles=handles
   task.wakeAt=if(seconds|eq(null)
