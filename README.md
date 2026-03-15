@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, numbers, `[boxes]`, and `{functions}`.
 
-axol version 0.4.21
+axol version 0.4.22
 
 # core
 
@@ -2101,11 +2101,11 @@ result=await(Task(foo "bar"))
 print(result)
 # bar
 
-bad=Task(from 4 to=40 step={})
+bad=Task(from 4 to=40)
 await(bad)
-# (trace to `from()`)
-#   up(i=i|sum(step))
-# Error: cannot sum(4 {"step"})
+# (trace to `updateTaskOnMsg`)
+#   [kv=[handles=[] seconds=null]]=msg
+# Error: pos=[] kv=[handles=[] seconds=null] cannot unbox pos=[4] kv=[]
 ```
 
 ### async
