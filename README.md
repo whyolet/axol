@@ -7,7 +7,7 @@
 * It aims for a great user experience with as few core elements as possible, just as the vast diversity of atoms arises from only three particles: protons, neutrons, and electrons.
 * Core elements of axol: `"strings"`, numbers, `[boxes]`, and `{functions}`.
 
-axol version 0.4.24
+axol version 0.4.25
 
 # core
 
@@ -1972,8 +1972,10 @@ mainLoop={
     theMin=getMinTaskSeconds(allTasks)
     taskSelector.select(
       seconds=theMin.seconds
-    )|or([[theMin.task]])|each({
-      $.val|each({
+    )|else({
+      [[tasks=[theMin.task]]]
+    })|each({
+      $.val.tasks|each({
         task=$.val
         msg=null
         err=catch({
