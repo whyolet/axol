@@ -1853,7 +1853,7 @@ Selector=type({[
 ]})
 
 subprocess=py.__import__("subprocess")
-sub = subprocess.Popen(
+sub=subprocess.Popen(
   ["bash" "-c" "for i in $(seq 5); do echo out $i && echo err $i >&2; done"]
   stdout=subprocess.PIPE
   stderr=subprocess.PIPE
