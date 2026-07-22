@@ -728,7 +728,7 @@ print("hey"|map({
 
 print(["a" b="c"].map({
   $.val|upper
-})|join("")
+})|join(""))
 # AC
 
 print("abc"|map({
@@ -1315,7 +1315,7 @@ log.letters=log.names|map({
 log.levels=[]  # debug=0 info=1 ...
 log.names|each({
   log.levels|set($.val $.key)
-}]
+})
 log.level=log.levels.info
 log.print=print
 log.do={
@@ -2074,7 +2074,7 @@ await={
     task=$.val
     task|is(Task)|then(continue)
     throw("not Task: {task}")
-  }]
+  })
 
   singleTask=tasks|len|eq(1)|te(
     tasks.0 null
